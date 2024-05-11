@@ -6,6 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "1.0.200", features = ["derive"] }
+chrono = "0.4.38"
+futures = "0.3.30"
+num-bigint = { version = "0.4.5", features = ["serde"] }
+num-traits = "0.2.19"
+reqwest = { version = "0.12.4", features = ["json"] }
+serde = { version = "1.0.201", features = ["derive"] }
 surrealdb = { version = "1.4.2", features = ["kv-mem"] }
+thiserror = "1.0.60"
 tokio = { version = "1.37.0", features = ["full"] }
