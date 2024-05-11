@@ -1,71 +1,67 @@
-use serde::{Deserialize, Serialize};
-use surrealdb::engine::local::Mem;
-use surrealdb::sql::Thing;
-use surrealdb::Surreal;
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Name {
-    first: String,
-    last: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Person {
-    title: String,
-    name: Name,
-    marketing: bool,
-}
-
-#[derive(Debug, Serialize)]
-struct Responsibility {
-    marketing: bool,
-}
+use futures::{SinkExt, StreamExt};
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-struct Record {
-    #[allow(dead_code)]
-    id: Thing,
+pub struct AggTradeBinanceResponse {
+    #[serde(rename = "e")]
+    pub event_type: String,
+
+    #[serde(rename = "E")]
+    pub event_time: u64,
+
+    #[serde(rename = "s")]
+    pub symbol: String,
+
+    #[serde(rename = "a")]
+    pub aggregate_trade_id: u64,
+
+    #[serde(rename = "p")]
+    pub price: String,
+
+    #[serde(rename = "q")]
+    pub quantity: String,
+
+    #[serde(rename = "f")]
+    pub first_trade_id: u64,
+
+    #[serde(rename = "l")]
+    pub last_trade_id: u64,
+
+    #[serde(rename = "T")]
+    pub trade_time: u64,
+
+    #[serde(rename = "m")]
+    pub is_buyer_the_market_maker: bool,
 }
 
 #[tokio::main]
-async fn main() -> surrealdb::Result<()> {
-    // Create database connection
-    let db = Surreal::new::<Mem>(()).await?;
+async fn main() {
+    tracing_subscriber::fmt()
+        // all spans/events with a level higher than TRACE (e.g, info, warn, etc.)
+        // will be written to stdout.
+        .with_max_level(tracing::Level::DEBUG)
+        // sets this to be the default, global collector for this application.
+        .init();
 
-    // Select a specific namespace / database
-    db.use_ns("test").use_db("test").await?;
+    let url = url::Url::parse("wss://stream.binance.com/ws/btcusdt@aggTrade").unwrap();
 
-    // Create a new person with a random id
-    let created: Vec<Person> = db
-        .create("person")
-        .content(Person {
-            title: "Founder & CEO".to_string(),
-            name: Name {
-                first: "Tobie".to_string(),
-                last: "Morgan Hitchcock".to_string(),
-            },
-            marketing: true,
-        })
-        .await?;
-    dbg!(created);
+    let (ws_stream, response) = tokio_tungstenite::connect_async(url).await.unwrap();
 
-    // Update a person record with a specific id
-    let updated: Option<Record> = db
-        .update(("person", "jaime"))
-        .merge(Responsibility { marketing: true })
-        .await?;
-    dbg!(updated);
+    tracing::debug!("{:?}", response);
 
-    // Select all people records
-    let people: Vec<Record> = db.select("person").await?;
-    dbg!(people);
+    let (mut write, mut read) = ws_stream.split();
 
-    // Perform a custom advanced query
-    let groups = db
-        .query("SELECT marketing, count() FROM type::table($table) GROUP BY marketing")
-        .bind(("table", "person"))
-        .await?;
-    dbg!(groups);
-
-    Ok(())
+    while let Some(Ok(message)) = read.next().await {
+        match message {
+            tokio_tungstenite::tungstenite::Message::Text(data) => {
+                let result = serde_json::from_str::<AggTradeBinanceResponse>(&data).unwrap();
+                tracing::info!("{:?}", result);
+            }
+            tokio_tungstenite::tungstenite::Message::Ping(x) => write
+                .send(tokio_tungstenite::tungstenite::Message::Pong(x))
+                .await
+                .unwrap(),
+            _ => panic!("non supported message variant"),
+        }
+    }
 }

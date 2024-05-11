@@ -6,6 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "1.0.200", features = ["derive"] }
+futures = "0.3.30"
+serde = { version = "1.0.201", features = ["derive"] }
+serde_json = "1.0.117"
 surrealdb = { version = "1.4.2", features = ["kv-mem"] }
 tokio = { version = "1.37.0", features = ["full"] }
+tokio-tungstenite = { version = "0.21.0", features = ["rustls-tls-webpki-roots"] }
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+url = "2.5.0"
