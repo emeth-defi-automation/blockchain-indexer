@@ -10,7 +10,6 @@ pub struct TransfersHistoryResultResponse {
     pub value: String,
 }
 
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GetTransfersHistoryResponse {
     total: Option<u64>,

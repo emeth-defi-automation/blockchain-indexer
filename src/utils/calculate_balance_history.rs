@@ -1,6 +1,6 @@
-use std::string::ParseError;
 use num_bigint::BigUint;
-use num_traits::ops::checked::{CheckedSub, CheckedAdd};
+use num_traits::ops::checked::{CheckedAdd, CheckedSub};
+use std::string::ParseError;
 
 use crate::models::responses::starting_balance::GetStartingBalanceResponse;
 use crate::models::responses::transfer_history::TransfersHistoryResultResponse;
@@ -12,8 +12,11 @@ pub async fn calculate_balance_history(
     transfer_history: &Vec<TransfersHistoryResultResponse>,
     wallet: &Wallet,
 ) -> Result<Vec<TransfersHistoryRecord>, ParseError> {
+    // dbg!(&current_balance);
+    // dbg!(&transfer_history);
     let mut history_records: Vec<TransfersHistoryRecord> = Vec::new();
     for token in current_balance.iter_mut() {
+        dbg!(&token);
         let filtered_history: Vec<&TransfersHistoryResultResponse> = transfer_history
             .into_iter()
             .filter(|item| item.token_symbol == token.symbol)
@@ -32,7 +35,8 @@ pub async fn calculate_balance_history(
                 &wallet.address,
                 &token.balance,
                 &transfer.value,
-            ).expect("Transaction balance should never overflow under 0")
+            )
+            .expect("Transaction balance should never overflow under 0")
             .to_string()
         }
     }
@@ -49,7 +53,9 @@ fn calculate_new_token_balance(
     let parsed_transfer_value = transfer_value.parse::<BigUint>().unwrap_or_default();
     dbg!(&parsed_token_balance);
     dbg!(&parsed_transfer_value);
-    let result = if transfer_from_address == wallet_address {
+    dbg!(&transfer_from_address);
+    dbg!(wallet_address);
+    let result = if transfer_from_address.to_lowercase() == wallet_address.to_lowercase() {
         match parsed_token_balance.checked_add(&parsed_transfer_value) {
             None => panic!("Overflow"),
             Some(add) => add,
