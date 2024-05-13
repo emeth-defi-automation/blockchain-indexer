@@ -20,4 +20,4 @@
 **/.vscode/
 
 # Envs
-.cargo/config.toml
+/.cargo
