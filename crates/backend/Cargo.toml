@@ -1,5 +1,5 @@
 [package]
-name = "jp"
+name = "backend"
 version.workspace = true
 edition.workspace = true
 
