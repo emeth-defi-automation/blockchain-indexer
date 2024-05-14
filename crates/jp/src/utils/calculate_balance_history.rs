@@ -16,7 +16,7 @@ pub async fn calculate_balance_history(
     // dbg!(&transfer_history);
     let mut history_records: Vec<TransfersHistoryRecord> = Vec::new();
     for token in current_balance.iter_mut() {
-        dbg!(&token);
+        // dbg!(&token);
         let filtered_history: Vec<&TransfersHistoryResultResponse> = transfer_history
             .into_iter()
             .filter(|item| item.token_symbol == token.symbol)
@@ -51,10 +51,10 @@ fn calculate_new_token_balance(
 ) -> Result<BigUint, ParseError> {
     let parsed_token_balance = token_balance.parse::<BigUint>().unwrap_or_default();
     let parsed_transfer_value = transfer_value.parse::<BigUint>().unwrap_or_default();
-    dbg!(&parsed_token_balance);
-    dbg!(&parsed_transfer_value);
-    dbg!(&transfer_from_address);
-    dbg!(wallet_address);
+    // dbg!(&parsed_token_balance);
+    // dbg!(&parsed_transfer_value);
+    // dbg!(&transfer_from_address);
+    // dbg!(wallet_address);
     let result = if transfer_from_address.to_lowercase() == wallet_address.to_lowercase() {
         match parsed_token_balance.checked_add(&parsed_transfer_value) {
             None => panic!("Overflow"),

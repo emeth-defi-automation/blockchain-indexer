@@ -50,6 +50,6 @@ pub async fn get_transfers_history(
         .await?;
 
     let body: GetTransfersHistoryResponse = response.json().await?;
-    dbg!(wallet_address, &body);
+    // dbg!(wallet_address, &body);
     Ok(body)
 }
