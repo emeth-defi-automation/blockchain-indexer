@@ -54,19 +54,13 @@ async fn main() -> Result<(), ServerError> {
         select! {
                 Some(result) = rx.recv() => {
                     let transfers = result.erc20_transfers.clone();
-                    tracing::info!("Received a new stream request: {:?}", transfers);
                     if transfers.is_empty() || !result.confirmed {
                         tracing::info!("Transfer is either empty or not confirmed");
                         continue;
                     }
-                    tracing::info!("Transfer is confirmed && not empty");
 
                     let mut balance_history_records: Vec<TransfersHistoryRecord> = Vec::new();
                     for transfer in transfers {
-
-                        tracing::info!("{}", &transfer.to);
-                        tracing::info!("{}", &transfer.from);
-
                         let to_address_checksummed = match transfer.to.parse::<ethers::types::H160>() {
                             Ok(address) => ethers::core::utils::to_checksum(&address, None),
                             Err(e) => {
@@ -153,32 +147,33 @@ async fn main() -> Result<(), ServerError> {
                         match result {
                             Ok(notification) if notification.action == Action::Create => {
                                 tracing::debug!("Received an add notification: {:?}", notification.data);
-                                // Parse the address and convert it to a checksummed format
+
                                 let address_checksummed = match notification.data.address.parse::<ethers::types::H160>() {
                                     Ok(address) => ethers::core::utils::to_checksum(&address, None),
                                     Err(e) => {
                                         tracing::error!("Failed to parse address: {}", e);
-                                        continue;  // Skip the current iteration of the loop
+                                        continue;
                                     }
                                 };
                                 add_wallet_address_to_moralis_stream(&address_checksummed).await?;
+
                                 let date = Utc::now();
-
-                                // Insert the checksummed address into the HashMap
                                 wallet_address_to_timestamp.insert(address_checksummed, date);
-
                                 let to_block = get_block_for_date(&chain, date).await?;
+
                                 get_balance_history_for_wallet(&notification.data, &chain, to_block).await?;
                             }
                             Ok(notification) if notification.action == Action::Delete => {
+                                tracing::debug!("Received a delete notification: {:?}", notification.data);
+
                                 let address_checksummed = match notification.data.address.parse::<ethers::types::H160>() {
                                     Ok(address) => ethers::core::utils::to_checksum(&address, None),
                                     Err(e) => {
                                         tracing::error!("Failed to parse address: {}", e);
-                                        continue;  // Skip the current iteration of the loop
+                                        continue;
                                     }
                                 };
-                                tracing::debug!("Received a delete notification: {:?}", notification.data);
+
                                 delete_wallet_address_from_moralis_stream(&address_checksummed).await?;
                             }
                             Ok(_) => tracing::info!("Received a notification other than Create"),
