@@ -92,7 +92,6 @@ async fn main() -> Result<(), ServerError> {
                         if !is_from.is_none()
                             && DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(result.block.clone().timestamp.parse::<i64>().unwrap(), 0), Utc)
                             > *wallet_address_to_timestamp.get(&from_address_checksummed.to_string()).unwrap() {
-                                dbg!("From address is in the database");
                                 let mut wallet_id_query_result = db.query("SELECT id FROM wallet WHERE address = type::string($wallet_address)")
                                     .bind(("wallet_address",&from_address_checksummed)).await?;
 
@@ -114,7 +113,7 @@ async fn main() -> Result<(), ServerError> {
                         if !is_to.is_none()
                             && DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(result.block.clone().timestamp.parse::<i64>().unwrap(), 0), Utc)
                                 > *wallet_address_to_timestamp.get(&to_address_checksummed.to_string()).unwrap() {
-                                dbg!("To address is in the database");
+
                                 let mut wallet_id_query_result = db.query("SELECT id FROM wallet WHERE address = type::string($wallet_address)")
                                     .bind(("wallet_address",&to_address_checksummed)).await?;
 
