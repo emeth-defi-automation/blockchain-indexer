@@ -11,6 +11,8 @@ use crate::models::wallet::Wallet;
 use crate::utils::get_balance_history::get_balance_history;
 use crate::utils::get_balance_history_for_wallet::get_balance_history_for_wallet;
 use axum_server::server::start;
+
+use chrono::NaiveDateTime;
 use chrono::{DateTime, Utc};
 use futures::StreamExt;
 use networking::get_block_request::get_block_request;
@@ -47,96 +49,185 @@ async fn main() -> Result<(), ServerError> {
     tokio::spawn(async move {
         start(tx).await;
     });
+
     loop {
         select! {
                 Some(result) = rx.recv() => {
                     let transfers = result.erc20_transfers.clone();
+                    tracing::info!("Received a new stream request: {:?}", transfers);
                     if transfers.is_empty() || !result.confirmed {
                         tracing::info!("Transfer is either empty or not confirmed");
+                        continue;
                     }
+                    tracing::info!("Transfer is confirmed && not empty");
 
                     let mut balance_history_records: Vec<TransfersHistoryRecord> = Vec::new();
                     for transfer in transfers {
+
+                        tracing::info!("{}", &transfer.to);
+                        tracing::info!("{}", &transfer.from);
+
+                        let to_address_checksummed = match transfer.to.parse::<ethers::types::H160>() {
+                            Ok(address) => ethers::core::utils::to_checksum(&address, None),
+                            Err(e) => {
+                                tracing::error!("Failed to parse to address: {}", e);
+                                break;
+                            }
+                        };
+
+                        let from_address_checksummed = match transfer.from.parse::<ethers::types::H160>() {
+                            Ok(address) => ethers::core::utils::to_checksum(&address, None),
+                            Err(e) => {
+                                tracing::error!("Failed to parse from address: {}", e);
+                                break;
+                            }
+                        };
+
                         let sql = "
                             SELECT count() FROM wallet WHERE address = type::string($wallet_from_address);
                             SELECT count() FROM wallet WHERE address = type::string($wallet_to_address);
                         ";
                         let mut is_from_and_to_in_database = db.query(sql)
-                            .bind(("wallet_from_address",&transfer.from)).bind(("wallet_to_address",&transfer.to))
-                            .bind(("wallet_addrresultess",&transfer.from)).await?;
+                            .bind(("wallet_from_address",&from_address_checksummed))
+                            .bind(("wallet_to_address",&to_address_checksummed))
+                            .await?;
 
-                        if is_from_and_to_in_database.take::<Option<i64>>(0).unwrap().unwrap() > 0
-                            && result.block.clone().timestamp.parse::<DateTime<Utc>>().unwrap() > *wallet_address_to_timestamp.get(&transfer.from).unwrap() {
+                        let is_from: Option<CountQueryResult> = is_from_and_to_in_database.take(0)?;
+                        let is_to: Option<CountQueryResult> = is_from_and_to_in_database.take(1)?;
 
-                            let wallet_id_query_result = db.query("SELECT id FROM wallet WHERE address = type::string($wallet_address)")
-                                .bind(("wallet_address",&transfer.from)).await?;
+                        if !is_from.is_none()
+                            && DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(result.block.clone().timestamp.parse::<i64>().unwrap(), 0), Utc)
+                            > *wallet_address_to_timestamp.get(&from_address_checksummed.to_string()).unwrap() {
+                                dbg!("From address is in the database");
+                                let mut wallet_id_query_result = db.query("SELECT id FROM wallet WHERE address = type::string($wallet_address)")
+                                    .bind(("wallet_address",&from_address_checksummed)).await?;
 
-                            let wallet_id = parse_wallet_id(wallet_id_query_result).await;
+                                let wallet_data = wallet_id_query_result.take::<Vec<IdQueryResult>>(0)?;
 
-                            balance_history_records.push(TransfersHistoryRecord {
-                                block_number: result.block.clone().number,
-                                timestamp: result.block.clone().timestamp,
-                                value: transfer.triggers[0].value.clone(),
-                                wallet_id,
-                                token_symbol: transfer.token_symbol.clone(),
-                            });
+                                let wallet_id = Thing {
+                                    tb: wallet_data[0].id.tb.clone(),
+                                    id: wallet_data[0].id.id.clone(),
+                                };
+                                balance_history_records.push(TransfersHistoryRecord {
+                                    block_number: result.block.clone().number,
+                                    timestamp: result.block.clone().timestamp,
+                                    value: transfer.triggers[0].value.clone(),
+                                    wallet_id,
+                                    token_symbol: transfer.token_symbol.clone(),
+                                });
+                            }
+
+                        if !is_to.is_none()
+                            && DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(result.block.clone().timestamp.parse::<i64>().unwrap(), 0), Utc)
+                                > *wallet_address_to_timestamp.get(&to_address_checksummed.to_string()).unwrap() {
+                                dbg!("To address is in the database");
+                                let mut wallet_id_query_result = db.query("SELECT id FROM wallet WHERE address = type::string($wallet_address)")
+                                    .bind(("wallet_address",&to_address_checksummed)).await?;
+
+                                let wallet_data = wallet_id_query_result.take::<Vec<IdQueryResult>>(0)?;
+
+                                let wallet_id = Thing {
+                                    tb: wallet_data[0].id.tb.clone(),
+                                    id: wallet_data[0].id.id.clone(),
+                                };
+
+                                balance_history_records.push(TransfersHistoryRecord {
+                                    block_number: result.block.clone().number,
+                                    timestamp: result.block.clone().timestamp,
+                                    value: transfer.triggers[1].value.clone(),
+                                    wallet_id,
+                                    token_symbol: transfer.token_symbol.clone(),
+                                });
+                            }
                         }
-                        if is_from_and_to_in_database.take::<Option<i64>>(1).unwrap().unwrap() > 0
-                            && result.block.clone().timestamp.parse::<DateTime<Utc>>().unwrap() > *wallet_address_to_timestamp.get(&transfer.to).unwrap() {
-                            let wallet_id_query_result = db.query("SELECT id FROM wallet WHERE address = type::string($wallet_address)")
-                                .bind(("wallet_address",&transfer.to)).await?;
-                            let wallet_id = parse_wallet_id(wallet_id_query_result).await;
-                            balance_history_records.push(TransfersHistoryRecord {
-                                block_number: result.block.clone().number,
-                                timestamp: result.block.clone().timestamp,
-                                value: transfer.triggers[1].value.clone(),
-                                wallet_id,
-                                token_symbol: transfer.token_symbol.clone(),
-                            });
+
+                        if !balance_history_records.is_empty() {
+                            let response = db.insert::<Vec<TransfersHistoryRecord>>("rust_balance_history")
+                                .content(balance_history_records).await?;
+                            for record in response {
+                                tracing::debug!("Inserted Record: {:?}", record);
+                            }
                         }
                     }
-                    if !balance_history_records.is_empty() {
-                        let response = db.insert::<Vec<TransfersHistoryRecord>>("rust_balance_history")
-                            .content(balance_history_records).await?;
-                        for record in response {
-                            tracing::debug!("Inserted Record: {:?}", record);
-                        }
-                    }
-                },
-                Some(result) = stream.next() => {
-                    match result {
-                        Ok(notification) if notification.action == Action::Create => {
-                            tracing::debug!("Received a notification: {:?}", notification.data);
-                            add_wallet_address_to_moralis_stream(&notification.data.address).await?;
-                            let date = Utc::now();
-                            wallet_address_to_timestamp.insert(notification.data.address.clone(), date);
-                            get_block_for_date(&chain, date).await?;
-                            get_balance_history_for_wallet(&notification.data, &chain, to_block).await?;
-                        }
-                        Ok(_) => tracing::info!("Received a notification other than Create"),
-                        Err(e) => tracing::error!("Error occured in select!: {}", e),
+                    Some(result) = stream.next() => {
+                        match result {
+                            Ok(notification) if notification.action == Action::Create => {
+                                tracing::debug!("Received an add notification: {:?}", notification.data);
+                                // Parse the address and convert it to a checksummed format
+                                let address_checksummed = match notification.data.address.parse::<ethers::types::H160>() {
+                                    Ok(address) => ethers::core::utils::to_checksum(&address, None),
+                                    Err(e) => {
+                                        tracing::error!("Failed to parse address: {}", e);
+                                        continue;  // Skip the current iteration of the loop
+                                    }
+                                };
+                                add_wallet_address_to_moralis_stream(&address_checksummed).await?;
+                                let date = Utc::now();
 
-                    }
-                },
+                                // Insert the checksummed address into the HashMap
+                                wallet_address_to_timestamp.insert(address_checksummed, date);
+
+                                let to_block = get_block_for_date(&chain, date).await?;
+                                get_balance_history_for_wallet(&notification.data, &chain, to_block).await?;
+                            }
+                            Ok(notification) if notification.action == Action::Delete => {
+                                let address_checksummed = match notification.data.address.parse::<ethers::types::H160>() {
+                                    Ok(address) => ethers::core::utils::to_checksum(&address, None),
+                                    Err(e) => {
+                                        tracing::error!("Failed to parse address: {}", e);
+                                        continue;  // Skip the current iteration of the loop
+                                    }
+                                };
+                                tracing::debug!("Received a delete notification: {:?}", notification.data);
+                                delete_wallet_address_from_moralis_stream(&address_checksummed).await?;
+                            }
+                            Ok(_) => tracing::info!("Received a notification other than Create"),
+                            Err(e) => tracing::error!("Error occured in select!: {}", e),
+                        }
+                    },
+
         }
     }
 }
 
-async fn parse_wallet_id(mut wallet_id_query_result: Response) -> Thing {
-    let wallet_id_str = wallet_id_query_result
-        .take::<Option<String>>(0)
-        .unwrap()
-        .unwrap();
-    let split: Vec<&str> = wallet_id_str.split(':').collect();
-    let tb = split[0].to_string();
-    let id = Id::from(split[1].to_string());
-    Thing { tb, id }
+#[derive(Debug, serde::Deserialize)]
+pub struct IdQueryResult {
+    pub id: Thing,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct QueryThing {
+    pub tb: String,
+    pub id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct CountQueryResult {
+    count: i32,
+}
+
+async fn delete_wallet_address_from_moralis_stream(address: &str) -> Result<(), reqwest::Error> {
+    let moralis_api_key = std::env!("MORALIS_API_KEY");
+    let moralis_stream_id = std::env!("MORALIS_STREAM_ID");
+    let client = reqwest::Client::new();
+    let res = client
+        .delete(&format!(
+            "https://api.moralis-streams.com/streams/evm/{}/address",
+            moralis_stream_id
+        ))
+        .header("accept", "application/json")
+        .header("X-API-Key", moralis_api_key)
+        .header("content-type", "application/json")
+        .body(format!("{{\"address\": \"{}\"}}", address))
+        .send()
+        .await?;
+    println!("Response: {:?}", res);
+    Ok(())
 }
 
 async fn add_wallet_address_to_moralis_stream(address: &str) -> Result<(), reqwest::Error> {
-    let moralis_api_key = std::env::var("MORALIS_API_KEY").expect("MORALIS_API_KEY must be set");
-    let moralis_stream_id =
-        std::env::var("MORALIS_STREAM_ID").expect("MORALIS_STREAM_ID must be set");
+    let moralis_api_key = std::env!("MORALIS_API_KEY");
+    let moralis_stream_id = std::env!("MORALIS_STREAM_ID");
     let client = reqwest::Client::new();
     let res = client
         .post(&format!(
@@ -144,7 +235,7 @@ async fn add_wallet_address_to_moralis_stream(address: &str) -> Result<(), reqwe
             moralis_stream_id
         ))
         .header("accept", "application/json")
-        .header("X-API-Key", &moralis_api_key)
+        .header("X-API-Key", moralis_api_key)
         .header("content-type", "application/json")
         .body(format!("{{\"address\": \"{}\"}}", address))
         .send()
