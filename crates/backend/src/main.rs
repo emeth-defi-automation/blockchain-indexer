@@ -18,9 +18,9 @@ use futures::StreamExt;
 use networking::get_block_request::get_block_request;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::{Id, Thing};
+use surrealdb::sql::Thing;
+use surrealdb::Action;
 use surrealdb::{engine::remote::ws::Ws, opt::auth::Root, Surreal};
-use surrealdb::{Action, Response};
 use tokio::select;
 
 #[tokio::main]
