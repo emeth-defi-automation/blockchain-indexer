@@ -3,12 +3,12 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ServerError {
-    #[error("Spadłem z rowerka")]
+    #[error("Database Error has occured")]
     Surreal(#[from] surrealdb::Error),
 
-    #[error("Ja też")]
+    #[error("Networking Error has occured")]
     Reqwest(#[from] reqwest::Error),
 
-    #[error("Ja też")]
+    #[error("Parsing Error has occured")]
     String(#[from] ParseError)
 }
