@@ -42,6 +42,5 @@ pub async fn get_starting_balance(
         .await?;
 
     let body: Vec<GetStartingBalanceResponse> = response.json().await?;
-    // dbg!(wallet_address, &body);
     Ok(body)
 }
