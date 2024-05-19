@@ -10,5 +10,5 @@ pub enum ServerError {
     Reqwest(#[from] reqwest::Error),
 
     #[error("Ja też")]
-    String(#[from] ParseError)
+    String(#[from] ParseError),
 }

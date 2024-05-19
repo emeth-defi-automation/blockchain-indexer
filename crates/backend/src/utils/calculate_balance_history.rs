@@ -1,11 +1,13 @@
-use num_bigint::BigUint;
-use num_traits::ops::checked::{CheckedAdd, CheckedSub};
-use std::string::ParseError;
-
 use crate::models::responses::starting_balance::GetStartingBalanceResponse;
 use crate::models::responses::transfer_history::TransfersHistoryResultResponse;
 use crate::models::transfer_history_record::TransfersHistoryRecord;
 use crate::models::wallet::Wallet;
+use chrono::DateTime;
+use chrono::Utc;
+use num_bigint::BigUint;
+use num_traits::ops::checked::{CheckedAdd, CheckedSub};
+use std::string::ParseError;
+use surrealdb::sql::Datetime;
 
 pub async fn calculate_balance_history(
     current_balance: &mut Vec<GetStartingBalanceResponse>,
@@ -19,10 +21,11 @@ pub async fn calculate_balance_history(
             .filter(|item| item.token_symbol == token.symbol)
             .collect();
         for transfer in filtered_history.iter() {
+            let timestamp_converted: DateTime<Utc> = transfer.block_timestamp.parse().unwrap();
             let history_record: TransfersHistoryRecord = TransfersHistoryRecord {
-                timestamp: transfer.block_timestamp.clone(),
+                timestamp: Datetime(timestamp_converted),
                 block_number: transfer.block_number.clone(),
-                value: token.balance.clone(),
+                wallet_value: token.balance.clone(),
                 wallet_id: wallet.id.clone(),
                 token_symbol: transfer.token_symbol.clone(),
             };
