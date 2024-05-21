@@ -36,24 +36,20 @@ pub async fn get_token_price_history(
     end_timestamp_in_millis: u64,
 ) -> Result<Vec<TokenPriceResponse>, ServerError> {
     let limit: u64 = 720;
-    dbg!(end_timestamp_in_millis);
     let start_time = end_timestamp_in_millis - (limit * 60 * 1000);
-    dbg!(end_timestamp_in_millis);
-    dbg!(start_time);
-    let url = "https://api.binance.com/api/v3/klines";
+    let url = std::env!("BINANCE_KLINES_URL");
     let query = TokenPriceParams {
-        symbol: token_symbol.to_string().to_uppercase() + "USDT",
-        interval: "1m".to_string(),
+        symbol: token_symbol.to_string().to_uppercase() + std::env!("USDT_TOKEN_SYMBOL"),
+        interval: std::env!("BINANCE_INTERVAL").to_string(),
         start_time: start_time,
         end_time: end_timestamp_in_millis,
         limit: limit,
     };
     let client = Client::new();
-    let response = handle_api_ratelimit(3, 1, || async {
+    let response = handle_api_ratelimit(3, || async {
         client.get(url).query(&query).send().await
     })
     .await?;
-    dbg!(&response);
     let body: Vec<TokenPriceRawResponse> = response.json().await?;
     let result: Vec<TokenPriceResponse> = body
         .into_iter()

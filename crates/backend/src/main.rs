@@ -22,7 +22,6 @@ use surrealdb::sql::Thing;
 use surrealdb::Action;
 use surrealdb::{engine::remote::ws::Ws, opt::auth::Root, Surreal};
 use tokio::select;
-use chrono::Utc;
 use utils::get_multiple_token_price_history::get_multiple_token_price_history;
 
 #[tokio::main]
