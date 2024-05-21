@@ -12,9 +12,9 @@ pub enum ServerError {
     #[error("Parsing Error has occured")]
     String(#[from] ParseError),
 
-    #[error("Ja też")]
+    #[error("Parsing Json Error has occured")]
     SerdeJson(#[from] serde_json::Error),
 
-    #[error("Ja też")]
+    #[error("Tokio Tungstenite Error has occured")]
     TokioTungstenite(#[from] tokio_tungstenite::tungstenite::Error)
 }
