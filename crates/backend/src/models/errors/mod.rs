@@ -10,5 +10,11 @@ pub enum ServerError {
     Reqwest(#[from] reqwest::Error),
 
     #[error("Parsing Error has occured")]
-    String(#[from] ParseError)
+    String(#[from] ParseError),
+
+    #[error("Ja też")]
+    SerdeJson(#[from] serde_json::Error),
+
+    #[error("Ja też")]
+    TokioTungstenite(#[from] tokio_tungstenite::tungstenite::Error)
 }
