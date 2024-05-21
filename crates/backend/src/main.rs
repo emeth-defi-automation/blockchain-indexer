@@ -22,10 +22,11 @@ use surrealdb::sql::Thing;
 use surrealdb::Action;
 use surrealdb::{engine::remote::ws::Ws, opt::auth::Root, Surreal};
 use tokio::select;
+use utils::get_multiple_token_price_history::get_multiple_token_price_history;
 
 #[tokio::main]
 async fn main() -> Result<(), ServerError> {
-    // initialize tracing
+    //initialize tracing
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .init();
@@ -37,9 +38,11 @@ async fn main() -> Result<(), ServerError> {
         password: "root",
     })
     .await?;
+    let date = Utc::now();
     let chain = "sepolia".to_string();
-    let to_block = get_block_request(&chain).await?;
+    let to_block = get_block_request(&chain, date).await?;
     get_balance_history(&chain, to_block).await?;
+    get_multiple_token_price_history(date).await?;
 
     let mut wallet_address_to_timestamp: HashMap<String, DateTime<Utc>> = HashMap::new();
 

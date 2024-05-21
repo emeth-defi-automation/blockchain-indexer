@@ -2,6 +2,7 @@ use crate::models::responses::transfer_history::GetTransfersHistoryResponse;
 use reqwest::Client;
 use serde::Serialize;
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize)]
 struct GetTransfersHistoryParams {
     chain: String,

@@ -1,4 +1,4 @@
-use surrealdb::{engine::remote::ws::Ws, Surreal,};
+use surrealdb::{engine::remote::ws::Ws, Surreal};
 use crate::models::transfer_history_record::TransfersHistoryRecord;
 use serde::Deserialize;
 use surrealdb::sql::Thing;
