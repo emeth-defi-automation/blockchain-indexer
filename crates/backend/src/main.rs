@@ -1,6 +1,7 @@
 mod database;
 mod models;
 mod networking;
+mod streams;
 mod utils;
 
 use std::collections::HashMap;
@@ -18,6 +19,7 @@ use futures::StreamExt;
 use networking::get_block_request::get_block_request;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use streams::get_price_stream::get_price_stream;
 use surrealdb::sql::Thing;
 use surrealdb::Action;
 use surrealdb::{engine::remote::ws::Ws, opt::auth::Root, Surreal};
@@ -30,7 +32,6 @@ async fn main() -> Result<(), ServerError> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .init();
-
     let db = Surreal::new::<Ws>("localhost:8000").await?;
     db.use_ns("test").use_db("test").await?;
     db.signin(Root {
@@ -43,7 +44,14 @@ async fn main() -> Result<(), ServerError> {
     let to_block = get_block_request(&chain, date).await?;
     get_balance_history(&chain, to_block).await?;
     get_multiple_token_price_history(date).await?;
-
+    let golem_price_stream = tokio::spawn(get_price_stream(
+        std::env!("GLM_TOKEN_BINANCE_SYMBOL").to_lowercase(),
+    ));
+    let usdc_price_stream = tokio::spawn(get_price_stream(
+        std::env!("USDC_TOKEN_BINANCE_SYMBOL").to_lowercase(),
+    ));
+    let x = tokio::try_join!(golem_price_stream, usdc_price_stream);
+    tracing::error!("{:?}", x);
     let mut wallet_address_to_timestamp: HashMap<String, DateTime<Utc>> = HashMap::new();
 
     let mut stream = db.select::<Vec<Wallet>>("wallet").live().await?;
@@ -144,8 +152,8 @@ async fn main() -> Result<(), ServerError> {
                                 tracing::debug!("Inserted Record: {:?}", record);
                             }
                         }
-                    }
-                    Some(result) = stream.next() => {
+                   }
+                Some(result) = stream.next() => {
                         match result {
                             Ok(notification) if notification.action == Action::Create => {
                                 tracing::debug!("Received an add notification: {:?}", notification.data);
