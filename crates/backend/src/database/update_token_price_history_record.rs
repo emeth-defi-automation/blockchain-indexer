@@ -1,5 +1,5 @@
 use crate::models::{errors::ServerError, responses::kline_binance_response::KlineDataResponse};
-use surrealdb::{engine::remote::ws::Ws, opt::PatchOp, sql::Thing, Surreal};
+use surrealdb::{engine::remote::ws::Ws, opt::PatchOp, sql::{Datetime, Thing}, Surreal};
 
 pub async fn update_token_price_history_record(id: Thing, record: KlineDataResponse) -> Result<Option<TokenPriceResponseId>, ServerError> {
     let db = Surreal::new::<Ws>("localhost:8000").await?;
@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 pub struct TokenPriceResponse {
     id: Option<String>,
     pub price: String,
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: Datetime,
     pub symbol: String
 }
 

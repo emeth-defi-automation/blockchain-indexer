@@ -1,4 +1,4 @@
-use surrealdb::{engine::remote::ws::Ws, sql::Thing, Surreal};
+use surrealdb::{engine::remote::ws::Ws, sql::{Thing, Datetime} ,Surreal};
 use crate::models::responses::kline_binance_response::KlineDataResponse;
 
 pub async fn add_token_price_history_record(record: KlineDataResponse) -> Result <TokenPriceResponseId, surrealdb::Error> {
@@ -8,8 +8,8 @@ pub async fn add_token_price_history_record(record: KlineDataResponse) -> Result
         .create("token_price_history")
         .content(TokenPriceResponse{
             price: record.close_price, 
-            timestamp:DateTime::from_timestamp_millis(record.close_time as i64).unwrap(), 
-            symbol: record.symbol
+            timestamp:Datetime(DateTime::from_timestamp_millis(record.close_time as i64).unwrap()), 
+            symbol: record.symbol.chars().take(record.symbol.len() - 4).collect()
         }).await?;
     Ok(result.into_iter().nth(0).expect("There will always be one item in the vector"))
 }
@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenPriceResponse {
     pub price: String,
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: Datetime,
     pub symbol: String
 }
 
