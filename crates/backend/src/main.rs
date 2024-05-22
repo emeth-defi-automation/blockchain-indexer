@@ -3,23 +3,21 @@ mod models;
 mod networking;
 mod streams;
 mod utils;
-
-use std::collections::HashMap;
-
 use crate::models::errors::ServerError;
 use crate::models::transfer_history_record::TransfersHistoryRecord;
 use crate::models::wallet::Wallet;
 use crate::utils::get_balance_history::get_balance_history;
 use crate::utils::get_balance_history_for_wallet::get_balance_history_for_wallet;
 use axum_server::server::start;
-
 use chrono::NaiveDateTime;
 use chrono::{DateTime, Utc};
 use futures::StreamExt;
 use networking::get_block_request::get_block_request;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use streams::get_price_stream::get_price_stream;
+use std::collections::HashMap;
+use streams::connect_price_stream::connect_price_stream;
+use streams::handle_price_stream_response::handle_price_stream_response;
 use surrealdb::sql::Thing;
 use surrealdb::Action;
 use surrealdb::{engine::remote::ws::Ws, opt::auth::Root, Surreal};
@@ -44,16 +42,11 @@ async fn main() -> Result<(), ServerError> {
     let to_block = get_block_request(&chain, date).await?;
     get_balance_history(&chain, to_block).await?;
     get_multiple_token_price_history(date).await?;
-    let golem_price_stream = tokio::spawn(get_price_stream(
-        std::env!("GLM_TOKEN_BINANCE_SYMBOL").to_lowercase(),
-    ));
-    let usdc_price_stream = tokio::spawn(get_price_stream(
-        std::env!("USDC_TOKEN_BINANCE_SYMBOL").to_lowercase(),
-    ));
-    let x = tokio::try_join!(golem_price_stream, usdc_price_stream);
-    tracing::error!("{:?}", x);
     let mut wallet_address_to_timestamp: HashMap<String, DateTime<Utc>> = HashMap::new();
-
+    let (mut golem_price_stream_tx, mut golem_price_stream_rx) =
+        connect_price_stream(std::env!("GLM_TOKEN_BINANCE_SYMBOL").to_string()).await?.split();
+    let (mut usdc_price_stream_tx, mut usdc_price_stream_rx ) =
+        connect_price_stream(std::env!("USDC_TOKEN_BINANCE_SYMBOL").to_string()).await?.split();
     let mut stream = db.select::<Vec<Wallet>>("wallet").live().await?;
 
     let (tx, mut rx) = tokio::sync::mpsc::channel(100);
@@ -190,7 +183,18 @@ async fn main() -> Result<(), ServerError> {
                             Err(e) => tracing::error!("Error occured in select!: {}", e),
                         }
                     },
-
+                Some(result) = golem_price_stream_rx.next() => {
+                    match result {
+                        Ok(value) => handle_price_stream_response(value),
+                        Err(e) => {
+                            tracing::error!("Failed to parse from address: {}", e);
+                        },
+                        _ => {}
+                    }
+                }
+                Some(result) = usdc_price_stream_rx.next() => {
+                    handle_price_stream_response(result);
+                }
         }
     }
 }
