@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct KlineBinanceResponse {
     #[serde(rename = "e")]
     pub event_type: String,
@@ -15,7 +15,7 @@ pub struct KlineBinanceResponse {
     pub data: KlineDataResponse,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct KlineDataResponse {
     #[serde(rename = "s")]
     pub symbol: String,
