@@ -3,23 +3,21 @@ mod models;
 mod networking;
 mod streams;
 mod utils;
-
-use std::collections::HashMap;
-
 use crate::models::errors::ServerError;
 use crate::models::transfer_history_record::TransfersHistoryRecord;
 use crate::models::wallet::Wallet;
 use crate::utils::get_balance_history::get_balance_history;
 use crate::utils::get_balance_history_for_wallet::get_balance_history_for_wallet;
 use axum_server::server::start;
-
 use chrono::NaiveDateTime;
 use chrono::{DateTime, Utc};
 use futures::StreamExt;
 use networking::get_block_request::get_block_request;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use streams::get_price_stream::get_price_stream;
+use std::collections::HashMap;
+use streams::connect_price_stream::connect_price_stream;
+use streams::handle_price_stream_response::handle_price_stream_response;
 use surrealdb::sql::Thing;
 use surrealdb::Action;
 use surrealdb::{engine::remote::ws::Ws, opt::auth::Root, Surreal};
@@ -30,7 +28,7 @@ use utils::get_multiple_token_price_history::get_multiple_token_price_history;
 async fn main() -> Result<(), ServerError> {
     //initialize tracing
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
+        .with_max_level(tracing::Level::INFO)
         .init();
     let db = Surreal::new::<Ws>("localhost:8000").await?;
     db.use_ns("test").use_db("test").await?;
@@ -42,20 +40,27 @@ async fn main() -> Result<(), ServerError> {
     let date = Utc::now();
     let chain = "sepolia".to_string();
     let to_block = get_block_request(&chain, date).await?;
-    get_balance_history(&chain, to_block).await?;
-    get_multiple_token_price_history(date).await?;
-    let golem_price_stream = tokio::spawn(get_price_stream(
-        std::env!("GLM_TOKEN_BINANCE_SYMBOL").to_lowercase(),
-    ));
-    let usdc_price_stream = tokio::spawn(get_price_stream(
-        std::env!("USDC_TOKEN_BINANCE_SYMBOL").to_lowercase(),
-    ));
-    let x = tokio::try_join!(golem_price_stream, usdc_price_stream);
-    tracing::error!("{:?}", x);
+    let mut current_close_time: HashMap<String, u64> = HashMap::new();
+    current_close_time.insert("GLMUSDT".to_string(), 0);
+    current_close_time.insert("USDCUSDT".to_string(), 0);
+    let mut record_id: HashMap<String, Thing> = HashMap::new();
     let mut wallet_address_to_timestamp: HashMap<String, DateTime<Utc>> = HashMap::new();
-
+    let (mut golem_price_stream_tx, mut golem_price_stream_rx) =
+        connect_price_stream(std::env!("GLM_TOKEN_BINANCE_SYMBOL").to_lowercase())
+            .await?
+            .split();
+    let (mut usdc_price_stream_tx, mut usdc_price_stream_rx) =
+        connect_price_stream(std::env!("USDC_TOKEN_BINANCE_SYMBOL").to_lowercase())
+            .await?
+            .split();
     let mut stream = db.select::<Vec<Wallet>>("wallet").live().await?;
 
+    tokio::spawn(async move {
+        let _ = get_balance_history(to_block).await;
+    });
+    tokio::spawn(async move {
+        let _ = get_multiple_token_price_history(date).await;
+    });
     let (tx, mut rx) = tokio::sync::mpsc::channel(100);
     tokio::spawn(async move {
         start(tx).await;
@@ -190,7 +195,12 @@ async fn main() -> Result<(), ServerError> {
                             Err(e) => tracing::error!("Error occured in select!: {}", e),
                         }
                     },
-
+                Some(result) = golem_price_stream_rx.next() =>  {
+                    handle_price_stream_response(result, &mut golem_price_stream_tx, &mut current_close_time, &mut record_id).await?;    
+                }
+                Some(result) = usdc_price_stream_rx.next() => {
+                    handle_price_stream_response(result, &mut usdc_price_stream_tx, &mut current_close_time, &mut record_id).await?
+                }
         }
     }
 }
@@ -245,7 +255,7 @@ async fn add_wallet_address_to_moralis_stream(address: &str) -> Result<(), reqwe
         .body(format!("{{\"address\": \"{}\"}}", address))
         .send()
         .await?;
-    println!("Response: {:?}", res);
+    println!("Added new wallet");
     Ok(())
 }
 

@@ -3,6 +3,7 @@ use crate::{models::errors::ServerError, utils::handle_api_ratelimit::handle_api
 use chrono::DateTime;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use surrealdb::sql::Datetime;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,7 +56,7 @@ pub async fn get_token_price_history(
         .into_iter()
         .map(|item| TokenPriceResponse {
             price: item.close_price,
-            timestamp: DateTime::from_timestamp_millis(item.close_time as i64).unwrap(),
+            timestamp: Datetime(DateTime::from_timestamp_millis(item.close_time as i64).unwrap()),
             symbol: token_symbol.to_string(),
         })
         .collect();

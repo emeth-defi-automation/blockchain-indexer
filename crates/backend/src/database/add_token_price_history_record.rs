@@ -27,5 +27,6 @@ pub struct TokenPriceResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenPriceResponseId {
     pub id: Thing,
+    pub symbol: String,
     pub timestamp: DateTime<Utc>
 }

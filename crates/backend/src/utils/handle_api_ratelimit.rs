@@ -14,7 +14,7 @@ where
             Err(e) if attempts == 1 => return Err(e),
             _ => {
                 attempts -= 1; 
-                sleep(Duration::from_secs(rand::thread_rng().gen_range(1..4))).await;
+                sleep(Duration::from_secs(2)).await;
             }
         };
     }

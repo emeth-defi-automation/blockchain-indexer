@@ -16,5 +16,8 @@ pub enum ServerError {
     SerdeJson(#[from] serde_json::Error),
 
     #[error("Tokio Tungstenite Error has occured")]
-    TokioTungstenite(#[from] tokio_tungstenite::tungstenite::Error)
+    TokioTungstenite(#[from] tokio_tungstenite::tungstenite::Error),
+
+    #[error("Std Error has occured")]
+    Std(#[from] Box<dyn std::error::Error>)
 }
