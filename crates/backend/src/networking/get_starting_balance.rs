@@ -29,7 +29,7 @@ pub async fn get_starting_balance(
     let client = Client::new();
     let mut request_builder = client.get(&url);
     request_builder = request_builder.query(&[("chain", chain)]);
-    request_builder = request_builder.query(&[("to_block", &to_block.to_string())]);
+    // request_builder = request_builder.query(&[("to_block", &to_block)]);
 
     for (i, address) in token_addresses.iter().enumerate() {
         let param_name = format!("token_addresses[{}]", i);
@@ -37,7 +37,7 @@ pub async fn get_starting_balance(
     }
 
     let response = request_builder
-        .header("X-API-Key", std::env!("API_KEY"))
+        .header("X-API-Key", std::env!("MORALIS_API_KEY"))
         .send()
         .await?;
 
