@@ -12,5 +12,6 @@ pub async fn connect_price_stream(
     let url = format!("wss://stream.binance.com:9443/ws/{symbol}@kline_1m");
     let parsed_url = Url::parse(&url).unwrap();
     let (ws_stream, _) = connect_async(parsed_url).await?;
+    tracing::info!("Connected to {} stream", symbol);
     Ok(ws_stream)
 }

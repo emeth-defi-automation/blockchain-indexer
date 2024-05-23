@@ -26,14 +26,14 @@ pub async fn handle_price_stream_response(
                 let new_record = add_token_price_history_record(kline.data.clone()).await?;
                 current_close_time.insert(kline.data.clone().symbol, new_record.timestamp.timestamp_millis() as u64);
                 record_id.insert(kline.data.clone().symbol, new_record.id);
-                tracing::info!("Add record");
+                tracing::info!("Add {} record", kline.data.symbol);
             } else {
                 let changed_record =
                     update_token_price_history_record(record_id.get(&kline.data.symbol).unwrap().clone(), kline.data.clone())
                         .await?
                         .expect("It will return a value");
                 current_close_time.insert(kline.data.clone().symbol, changed_record.timestamp.timestamp_millis() as u64);
-                tracing::info!("Update record");
+                tracing::info!("Update {} record", kline.data.symbol);
             };
         }
         Ok(Message::Ping(ping)) => {

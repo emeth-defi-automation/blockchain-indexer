@@ -255,7 +255,7 @@ async fn add_wallet_address_to_moralis_stream(address: &str) -> Result<(), reqwe
         .body(format!("{{\"address\": \"{}\"}}", address))
         .send()
         .await?;
-    println!("Response: {:?}", res);
+    println!("Added new wallet");
     Ok(())
 }
 
