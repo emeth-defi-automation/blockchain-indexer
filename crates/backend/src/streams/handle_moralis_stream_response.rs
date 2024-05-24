@@ -1,8 +1,9 @@
 use crate::{
-    models::{errors::ServerError, transfer_history_record::TransfersHistoryRecord}, CountQueryResult, IdQueryResult, DB
+    models::{errors::ServerError, transfer_history_record::TransfersHistoryRecord},
+    CountQueryResult, IdQueryResult, DB,
 };
 use axum_server::server::StreamRequestBody;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime,  Utc};
 use std::collections::HashMap;
 use surrealdb::sql::Thing;
 
@@ -48,15 +49,13 @@ pub async fn handle_moralis_stream_response(
         let is_to: Option<CountQueryResult> = is_from_and_to_in_database.take(1)?;
 
         if !is_from.is_none()
-            && DateTime::<Utc>::from_utc(
-                NaiveDateTime::from_timestamp(
-                    result.block.clone().timestamp.parse::<i64>().unwrap(),
-                    0,
-                ),
-                Utc,
-            ) > *wallet_address_to_timestamp
-                .get(&from_address_checksummed.to_string())
-                .unwrap()
+            && DateTime::<Utc>::from_timestamp_millis(
+                result.block.clone().timestamp.parse::<i64>().unwrap(),
+            )
+            .unwrap()
+                > *wallet_address_to_timestamp
+                    .get(&from_address_checksummed.to_string())
+                    .unwrap()
         {
             let mut wallet_id_query_result = DB
                 .query("SELECT id FROM wallet WHERE address = type::string($wallet_address)")
@@ -79,15 +78,13 @@ pub async fn handle_moralis_stream_response(
         }
 
         if !is_to.is_none()
-            && DateTime::<Utc>::from_utc(
-                NaiveDateTime::from_timestamp(
-                    result.block.clone().timestamp.parse::<i64>().unwrap(),
-                    0,
-                ),
-                Utc,
-            ) > *wallet_address_to_timestamp
-                .get(&to_address_checksummed.to_string())
-                .unwrap()
+            && DateTime::<Utc>::from_timestamp_millis(
+                result.block.clone().timestamp.parse::<i64>().unwrap(),
+            )
+            .unwrap()
+                > *wallet_address_to_timestamp
+                    .get(&to_address_checksummed.to_string())
+                    .unwrap()
         {
             let mut wallet_id_query_result = DB
                 .query("SELECT id FROM wallet WHERE address = type::string($wallet_address)")

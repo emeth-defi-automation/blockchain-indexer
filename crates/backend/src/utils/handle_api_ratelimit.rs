@@ -2,7 +2,6 @@ use futures::Future;
 use rand::Rng;
 use std::time::Duration;
 use tokio::time::sleep;
-// use rand::Rng;
 
 pub async fn handle_api_ratelimit<F, Fu, V, E>(mut attempts: u8, f: F) -> Result<V, E>
 where
@@ -14,8 +13,9 @@ where
             Ok(v) => return Ok(v),
             Err(e) if attempts == 1 => return Err(e),
             _ => {
-                attempts -= 1;
-                sleep(Duration::from_secs(2)).await;
+                attempts -= 1; 
+                let duration = rand::thread_rng().gen_range(1..4);
+                sleep(Duration::from_secs(duration)).await;
             }
         };
     }
