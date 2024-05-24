@@ -22,7 +22,7 @@ pub async fn handle_price_stream_response(
     match result {
         Ok(Message::Text(text)) => {
             let kline: KlineBinanceResponse = serde_json::from_str(&text)?;
-            if kline.data.close_time != *current_close_time.get(&kline.data.symbol).expect("msg") {
+            if kline.data.close_time != *current_close_time.get(&kline.data.symbol).expect("There will always be a current close time"){
                 let new_record = add_token_price_history_record(kline.data.clone()).await?;
                 current_close_time.insert(
                     kline.data.clone().symbol,

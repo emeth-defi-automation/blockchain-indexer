@@ -2,6 +2,7 @@ use futures::Future;
 use rand::Rng;
 use std::time::Duration;
 use tokio::time::sleep;
+// use rand::Rng;
 
 pub async fn handle_api_ratelimit<F, Fu, V, E>(mut attempts: u8, f: F) -> Result<V, E>
 where
