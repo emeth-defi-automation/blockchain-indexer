@@ -1,11 +1,7 @@
-use surrealdb::{engine::remote::ws::Ws, Surreal};
+use crate::DB;
 
 pub async fn get_token_symbols() -> Result<Vec<String>, surrealdb::Error> {
-    let db = Surreal::new::<Ws>(std::env!("LOCALHOST_ADDRESS")).await?;
-    db.use_ns(std::env!("DATABASE_NAMESPACE"))
-        .use_db(std::env!("DATABASE_NAME"))
-        .await?;
-    let mut result = db
+    let mut result = DB
         .query("SELECT VALUE symbol FROM token WHERE symbol != 'USDT';")
         .await?;
     let token_symbols: Vec<String> = result.take(0)?;

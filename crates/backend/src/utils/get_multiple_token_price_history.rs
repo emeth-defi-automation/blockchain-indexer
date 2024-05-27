@@ -3,13 +3,10 @@ use crate::{
         create_token_price_history::create_token_price_history,
         get_token_symbols::get_token_symbols,
     },
-    models::errors::ServerError,
     networking::get_token_price_history::get_token_price_history,
 };
 use chrono::{DateTime, Utc};
-use ethers::abi::token;
 use num_traits::ToPrimitive;
-use tokio_tungstenite::tungstenite::Error;
 
 pub async fn get_multiple_token_price_history(date: DateTime<Utc>) -> Result<(), String> {
     let token_symbols = get_token_symbols().await.map_err(|e| e.to_string())?;
