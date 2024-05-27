@@ -13,8 +13,7 @@ struct DateToBlockResponse {
     block: u64,
 }
 
-pub async fn get_block_request(chain: &String) -> Result<u64, reqwest::Error> {
-    let date = Utc::now();
+pub async fn get_block_request(chain: &String, date: DateTime<Utc>) -> Result<u64, reqwest::Error> {
     let url = "https://deep-index.moralis.io/api/v2.2/dateToBlock";
     let query = DateToBlockParams {
         chain: chain.to_string(),

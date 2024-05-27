@@ -1,15 +1,5 @@
 use crate::models::responses::transfer_history::GetTransfersHistoryResponse;
 use reqwest::Client;
-use serde::Serialize;
-
-#[derive(Debug, Serialize)]
-struct GetTransfersHistoryParams {
-    chain: String,
-    order: String,
-    limit: u64,
-    to_block: u64,
-    cursor: Option<String>,
-}
 
 pub async fn get_transfers_history(
     wallet_address: &String,

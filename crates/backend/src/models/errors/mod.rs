@@ -3,12 +3,21 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ServerError {
-    #[error("Spadłem z rowerka")]
+    #[error("Database Error has occured")]
     Surreal(#[from] surrealdb::Error),
 
-    #[error("Ja też")]
+    #[error("Networking Error has occured")]
     Reqwest(#[from] reqwest::Error),
 
-    #[error("Ja też")]
+    #[error("Parsing Error has occured")]
     String(#[from] ParseError),
+
+    #[error("Parsing Json Error has occured")]
+    SerdeJson(#[from] serde_json::Error),
+
+    #[error("Tokio Tungstenite Error has occured")]
+    TokioTungstenite(#[from] tokio_tungstenite::tungstenite::Error),
+
+    #[error("Std Error has occured")]
+    Std(#[from] Box<dyn std::error::Error>),
 }
