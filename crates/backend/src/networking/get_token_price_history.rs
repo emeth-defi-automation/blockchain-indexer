@@ -47,10 +47,8 @@ pub async fn get_token_price_history(
         limit: limit,
     };
     let client = Client::new();
-    let response = handle_api_ratelimit(3, || async {
-        client.get(url).query(&query).send().await
-    })
-    .await?;
+    let response =
+        handle_api_ratelimit(3, || async { client.get(url).query(&query).send().await }).await?;
     let body: Vec<TokenPriceRawResponse> = response.json().await?;
     let result: Vec<TokenPriceResponse> = body
         .into_iter()
