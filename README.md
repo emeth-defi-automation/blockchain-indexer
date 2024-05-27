@@ -36,7 +36,7 @@ Create account on [Moralis](https://moralis.io/) and create new app. You will ne
 Clone [Portfolio-Management-Platform](https://github.com/emeth-defi-automation/portfolio-management-platform) repository.
 
 ## Run
-
+Before runnig the app you should also read [Portfolio-Management-Platform-readme](https://github.com/emeth-defi-automation/portfolio-management-platform/blob/dev/README.md)
 ### Portfolio-Management-Platform
 Firstly, you need to run database:
 
