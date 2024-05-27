@@ -8,4 +8,3 @@ pub async fn get_token_symbols() -> Result<Vec<String>, surrealdb::Error> {
     dbg!(&token_symbols);
     Ok(token_symbols)
 }
-
