@@ -6,19 +6,21 @@ use axum::{
 };
 use serde::Deserialize;
 use surrealdb::engine::remote::ws::{Client, Ws};
+use tokio::sync::mpsc::Sender;
+
 
 #[derive(Clone)]
 struct AppState {
     db: surrealdb::Surreal<Client>,
-    tx: tokio::sync::mpsc::Sender<StreamRequestBody>,
+    tx: Sender<StreamRequestBody>,
 }
 
-pub async fn start(tx: tokio::sync::mpsc::Sender<StreamRequestBody>) {
+pub async fn start(tx: Sender<StreamRequestBody>) {
     let app_state = AppState {
-        db: surrealdb::Surreal::new::<Ws>("localhost:8000")
+        db: surrealdb::Surreal::new::<Ws>(std::env!("LOCALHOST_ADDRESS"))
             .await
             .unwrap(),
-        tx,
+        tx
     };
 
     let app: Router = Router::new()
@@ -26,7 +28,7 @@ pub async fn start(tx: tokio::sync::mpsc::Sender<StreamRequestBody>) {
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app).with_graceful_shutdown(graceful_shutdown_listener()).await.unwrap();
 }
 
 #[allow(dead_code)]
@@ -90,4 +92,30 @@ async fn handle_post(
 ) -> StatusCode {
     app_state.tx.send(body).await.unwrap();
     StatusCode::OK
+}
+
+pub async fn graceful_shutdown_listener() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+        dbg!("Shutdown complete");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+    dbg!("Ending shutdown");
 }

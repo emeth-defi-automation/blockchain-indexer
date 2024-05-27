@@ -15,6 +15,7 @@ use futures::StreamExt;
 use networking::get_block_request::get_block_request;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Notify;
 use std::collections::HashMap;
 use streams::connect_price_stream::connect_price_stream;
 use streams::handle_price_stream_response::handle_price_stream_response;
@@ -58,12 +59,18 @@ async fn main() -> Result<(), ServerError> {
     tokio::spawn(async move {
         let _ = get_balance_history(to_block).await;
     });
-    tokio::spawn(async move {
-        let _ = get_multiple_token_price_history(date).await;
-    });
+    //tokio::spawn(async move {
+    //    let _ = get_multiple_token_price_history(date).await;
+    //});
     let (tx, mut rx) = tokio::sync::mpsc::channel(100);
     tokio::spawn(async move {
         start(tx).await;
+    });
+    let notify_shutdown = std::sync::Arc::new(Notify::new());
+    let notify_shutdown_clone = notify_shutdown.clone();
+    tokio::spawn(async move {
+        notify_shutdown_clone.notified().await;
+        println!("Shutting down stream1 and stream2");
     });
 
     loop {
@@ -201,8 +208,16 @@ async fn main() -> Result<(), ServerError> {
                 Some(result) = usdc_price_stream_rx.next() => {
                     handle_price_stream_response(result, &mut usdc_price_stream_tx, &mut current_close_time, &mut record_id).await?
                 }
+                _ = notify_shutdown.notified() => {
+                    println!("Received shutdown signal, closing streams.");
+                    break;
+                }
+                _ = graceful_shutdown_listener(notify_shutdown.clone()) => {
+                    println!("Shutting down");
+                }
         }
     }
+    Ok(())
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -287,4 +302,32 @@ pub async fn get_block_for_date(
         .await?;
     let body: DateToBlockResponse = response.json().await?;
     Ok(body.block)
+}
+
+pub async fn graceful_shutdown_listener(notify_shutdown: std::sync::Arc<Notify>) {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+        dbg!("Shutdown complete");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+    dbg!("Ending shutdown");
+
+    notify_shutdown.notify_waiters();
 }
