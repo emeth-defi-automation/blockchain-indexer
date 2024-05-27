@@ -19,5 +19,5 @@ pub enum ServerError {
     TokioTungstenite(#[from] tokio_tungstenite::tungstenite::Error),
 
     #[error("Std Error has occured")]
-    Std(#[from] Box<dyn std::error::Error>)
+    Std(#[from] Box<dyn std::error::Error>),
 }

@@ -5,5 +5,5 @@ use surrealdb::sql::Datetime;
 pub struct TokenPriceResponse {
     pub price: String,
     pub timestamp: Datetime,
-    pub symbol: String
+    pub symbol: String,
 }

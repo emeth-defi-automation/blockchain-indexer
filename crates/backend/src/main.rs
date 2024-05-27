@@ -10,14 +10,19 @@ use crate::utils::get_balance_history::get_balance_history;
 use crate::utils::get_balance_history_for_wallet::get_balance_history_for_wallet;
 use axum_server::server::start;
 use chrono::NaiveDateTime;
+use chrono::TimeZone;
 use chrono::{DateTime, Utc};
+use ethers::types::H160;
+use ethers::utils::to_checksum;
 use futures::StreamExt;
 use networking::get_block_request::get_block_request;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::HashMap;
 use streams::connect_price_stream::connect_price_stream;
 use streams::handle_price_stream_response::handle_price_stream_response;
+use surrealdb::sql::Datetime;
 use surrealdb::sql::Thing;
 use surrealdb::Action;
 use surrealdb::{engine::remote::ws::Ws, opt::auth::Root, Surreal};
@@ -70,6 +75,7 @@ async fn main() -> Result<(), ServerError> {
         select! {
                 Some(result) = rx.recv() => {
                     let transfers = result.erc20_transfers.clone();
+                    tracing::info!("Received a new result: {:?}", result);
                     if transfers.is_empty() || !result.confirmed {
                         tracing::info!("Transfer is either empty or not confirmed");
                         continue;
@@ -77,16 +83,16 @@ async fn main() -> Result<(), ServerError> {
 
                     let mut balance_history_records: Vec<TransfersHistoryRecord> = Vec::new();
                     for transfer in transfers {
-                        let to_address_checksummed = match transfer.to.parse::<ethers::types::H160>() {
-                            Ok(address) => ethers::core::utils::to_checksum(&address, None),
+                        let to_address_checksummed = match transfer.to.parse::<H160>() {
+                            Ok(address) => to_checksum(&address, None),
                             Err(e) => {
                                 tracing::error!("Failed to parse to address: {}", e);
                                 break;
                             }
                         };
 
-                        let from_address_checksummed = match transfer.from.parse::<ethers::types::H160>() {
-                            Ok(address) => ethers::core::utils::to_checksum(&address, None),
+                        let from_address_checksummed = match transfer.from.parse::<H160>() {
+                            Ok(address) => to_checksum(&address, None),
                             Err(e) => {
                                 tracing::error!("Failed to parse from address: {}", e);
                                 break;
@@ -106,7 +112,7 @@ async fn main() -> Result<(), ServerError> {
                         let is_to: Option<CountQueryResult> = is_from_and_to_in_database.take(1)?;
 
                         if !is_from.is_none()
-                            && DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(result.block.clone().timestamp.parse::<i64>().unwrap(), 0), Utc)
+                            && Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(result.block.clone().timestamp.parse::<i64>().unwrap(), 0))
                             > *wallet_address_to_timestamp.get(&from_address_checksummed.to_string()).unwrap() {
                                 let mut wallet_id_query_result = db.query("SELECT id FROM wallet WHERE address = type::string($wallet_address)")
                                     .bind(("wallet_address",&from_address_checksummed)).await?;
@@ -119,15 +125,15 @@ async fn main() -> Result<(), ServerError> {
                                 };
                                 balance_history_records.push(TransfersHistoryRecord {
                                     block_number: result.block.clone().number,
-                                    timestamp: result.block.clone().timestamp,
-                                    value: transfer.triggers[0].value.clone(),
+                                    timestamp: Datetime(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(result.block.clone().timestamp.parse::<i64>().unwrap(), 0))),
+                                    wallet_value: transfer.triggers[0].value.clone(),
                                     wallet_id,
                                     token_symbol: transfer.token_symbol.clone(),
                                 });
                             }
 
                         if !is_to.is_none()
-                            && DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(result.block.clone().timestamp.parse::<i64>().unwrap(), 0), Utc)
+                            && Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(result.block.clone().timestamp.parse::<i64>().unwrap(), 0))
                                 > *wallet_address_to_timestamp.get(&to_address_checksummed.to_string()).unwrap() {
 
                                 let mut wallet_id_query_result = db.query("SELECT id FROM wallet WHERE address = type::string($wallet_address)")
@@ -142,8 +148,8 @@ async fn main() -> Result<(), ServerError> {
 
                                 balance_history_records.push(TransfersHistoryRecord {
                                     block_number: result.block.clone().number,
-                                    timestamp: result.block.clone().timestamp,
-                                    value: transfer.triggers[1].value.clone(),
+                                    timestamp: Datetime(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(result.block.clone().timestamp.parse::<i64>().unwrap(), 0))),
+                                    wallet_value: transfer.triggers[1].value.clone(),
                                     wallet_id,
                                     token_symbol: transfer.token_symbol.clone(),
                                 });
@@ -151,7 +157,7 @@ async fn main() -> Result<(), ServerError> {
                         }
 
                         if !balance_history_records.is_empty() {
-                            let response = db.insert::<Vec<TransfersHistoryRecord>>("rust_balance_history")
+                            let response = db.insert::<Vec<TransfersHistoryRecord>>("wallet_balance")
                                 .content(balance_history_records).await?;
                             for record in response {
                                 tracing::debug!("Inserted Record: {:?}", record);
@@ -164,7 +170,7 @@ async fn main() -> Result<(), ServerError> {
                                 tracing::debug!("Received an add notification: {:?}", notification.data);
 
                                 let address_checksummed = match notification.data.address.parse::<ethers::types::H160>() {
-                                    Ok(address) => ethers::core::utils::to_checksum(&address, None),
+                                    Ok(address) => to_checksum(&address, None),
                                     Err(e) => {
                                         tracing::error!("Failed to parse address: {}", e);
                                         continue;
@@ -182,7 +188,7 @@ async fn main() -> Result<(), ServerError> {
                                 tracing::debug!("Received a delete notification: {:?}", notification.data);
 
                                 let address_checksummed = match notification.data.address.parse::<ethers::types::H160>() {
-                                    Ok(address) => ethers::core::utils::to_checksum(&address, None),
+                                    Ok(address) => to_checksum(&address, None),
                                     Err(e) => {
                                         tracing::error!("Failed to parse address: {}", e);
                                         continue;
@@ -196,7 +202,7 @@ async fn main() -> Result<(), ServerError> {
                         }
                     },
                 Some(result) = golem_price_stream_rx.next() =>  {
-                    handle_price_stream_response(result, &mut golem_price_stream_tx, &mut current_close_time, &mut record_id).await?;    
+                    handle_price_stream_response(result, &mut golem_price_stream_tx, &mut current_close_time, &mut record_id).await?;
                 }
                 Some(result) = usdc_price_stream_rx.next() => {
                     handle_price_stream_response(result, &mut usdc_price_stream_tx, &mut current_close_time, &mut record_id).await?
@@ -244,6 +250,9 @@ async fn add_wallet_address_to_moralis_stream(address: &str) -> Result<(), reqwe
     let moralis_api_key = std::env!("MORALIS_API_KEY");
     let moralis_stream_id = std::env!("MORALIS_STREAM_ID");
     let client = reqwest::Client::new();
+    let body = json!({
+        "address": address
+    });
     let res = client
         .post(&format!(
             "https://api.moralis-streams.com/streams/evm/{}/address",
@@ -252,7 +261,7 @@ async fn add_wallet_address_to_moralis_stream(address: &str) -> Result<(), reqwe
         .header("accept", "application/json")
         .header("X-API-Key", moralis_api_key)
         .header("content-type", "application/json")
-        .body(format!("{{\"address\": \"{}\"}}", address))
+        .json(&body)
         .send()
         .await?;
     println!("Added new wallet");
