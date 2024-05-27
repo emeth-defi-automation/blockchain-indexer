@@ -35,7 +35,7 @@ pub async fn get_transfers_history(
     }
 
     let response = request_builder
-        .header("X-API-Key", std::env!("API_KEY"))
+        .header("X-API-Key", std::env!("MORALIS_API_KEY"))
         .send()
         .await?;
 

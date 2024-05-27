@@ -27,7 +27,7 @@ pub async fn get_block_for_date(
     let response = Client::new()
         .get(url)
         .query(&query)
-        .header("X-API-Key", std::env!("API_KEY"))
+        .header("X-API-Key", std::env!("MORALIS_API_KEY"))
         .send()
         .await?;
     let body: DateToBlockResponse = response.json().await?;

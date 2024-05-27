@@ -22,7 +22,7 @@ pub async fn get_block_request(chain: &String, date: DateTime<Utc>) -> Result<u6
     let response = Client::new()
         .get(url)
         .query(&query)
-        .header("X-API-Key", std::env!("API_KEY"))
+        .header("X-API-Key", std::env!("MORALIS_API_KEY"))
         .send()
         .await?;
     let body: DateToBlockResponse = response.json().await?;
