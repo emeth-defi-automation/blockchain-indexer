@@ -12,5 +12,11 @@ struct Record {
 pub async fn create_balance_history(calculated_history: &Vec<TransfersHistoryRecord>) -> Result<(), surrealdb::Error> {
     DB.insert::<Vec<TransfersHistoryRecord>>("wallet_balance")
     .content(calculated_history).await?;
+pub async fn create_balance_history(
+    calculated_history: &Vec<TransfersHistoryRecord>,
+) -> Result<(), surrealdb::Error> {
+    DB.insert::<Vec<TransfersHistoryRecord>>("rust_balance_history")
+        .content(calculated_history)
+        .await?;
     Ok(())
 }

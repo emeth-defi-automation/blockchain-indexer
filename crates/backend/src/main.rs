@@ -15,16 +15,21 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::collections::HashMap;
 use streams::{
-    handle_price_stream_response::handle_price_stream_response,
     connect_price_stream::connect_price_stream,
     handle_moralis_stream_response::handle_moralis_stream_response,
+    handle_price_stream_response::handle_price_stream_response,
     handle_wallet_stream_response::handle_wallet_stream_response,
 };
-use surrealdb::{engine::remote::{ws::Ws, ws}, opt::auth::Root, Surreal, sql::Thing};
+use surrealdb::{
+    engine::remote::{ws, ws::Ws},
+    opt::auth::Root,
+    sql::Thing,
+    Surreal,
+};
 use tokio::select;
 use utils::{
+    get_balance_history::get_balance_history,
     get_multiple_token_price_history::get_multiple_token_price_history,
-    get_balance_history::get_balance_history
 };
 
 static DB: Lazy<Surreal<ws::Client>> = Lazy::new(Surreal::init);

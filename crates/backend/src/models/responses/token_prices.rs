@@ -13,5 +13,5 @@ pub struct TokenPriceResponse {
 pub struct TokenPriceRecord {
     pub id: Thing,
     pub symbol: String,
-    pub timestamp: DateTime<Utc>
+    pub timestamp: DateTime<Utc>,
 }

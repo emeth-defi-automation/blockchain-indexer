@@ -13,7 +13,7 @@ where
             Ok(v) => return Ok(v),
             Err(e) if attempts == 1 => return Err(e),
             _ => {
-                attempts -= 1; 
+                attempts -= 1;
                 let duration = rand::thread_rng().gen_range(1..4);
                 sleep(Duration::from_secs(duration)).await;
             }

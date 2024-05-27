@@ -3,7 +3,7 @@ use crate::{
     CountQueryResult, IdQueryResult, DB,
 };
 use axum_server::server::StreamRequestBody;
-use chrono::{DateTime,  Utc};
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use surrealdb::sql::Thing;
 

@@ -1,9 +1,11 @@
+use crate::models::responses::token_prices::{TokenPriceRecord, TokenPriceResponse};
+use crate::{models::responses::kline_binance_response::KlineDataResponse, DB};
 use chrono::DateTime;
 use surrealdb::sql::Datetime;
-use crate::{models::responses::kline_binance_response::KlineDataResponse, DB};
-use crate::models::responses::token_prices::{TokenPriceResponse, TokenPriceRecord};
 
-pub async fn add_token_price_history_record(record: KlineDataResponse) -> Result <TokenPriceRecord, surrealdb::Error> {
+pub async fn add_token_price_history_record(
+    record: KlineDataResponse,
+) -> Result<TokenPriceRecord, surrealdb::Error> {
     let result: Vec<TokenPriceRecord> = DB
         .create("token_price_history")
         .content(TokenPriceResponse {
