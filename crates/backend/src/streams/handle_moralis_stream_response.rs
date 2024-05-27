@@ -3,9 +3,9 @@ use crate::{
     CountQueryResult, IdQueryResult, DB,
 };
 use axum_server::server::StreamRequestBody;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use std::collections::HashMap;
-use surrealdb::sql::Thing;
+use surrealdb::sql::{Datetime, Thing};
 
 pub async fn handle_moralis_stream_response(
     result: StreamRequestBody,
@@ -70,8 +70,8 @@ pub async fn handle_moralis_stream_response(
             };
             balance_history_records.push(TransfersHistoryRecord {
                 block_number: result.block.clone().number,
-                timestamp: result.block.clone().timestamp,
-                value: transfer.triggers[0].value.clone(),
+                timestamp: Datetime(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(result.block.clone().timestamp.parse::<i64>().unwrap(), 0))),
+                wallet_value: transfer.triggers[0].value.clone(),
                 wallet_id,
                 token_symbol: transfer.token_symbol.clone(),
             });
@@ -100,8 +100,8 @@ pub async fn handle_moralis_stream_response(
 
             balance_history_records.push(TransfersHistoryRecord {
                 block_number: result.block.clone().number,
-                timestamp: result.block.clone().timestamp,
-                value: transfer.triggers[1].value.clone(),
+                timestamp: Datetime(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(result.block.clone().timestamp.parse::<i64>().unwrap(), 0))),
+                wallet_value: transfer.triggers[1].value.clone(),
                 wallet_id,
                 token_symbol: transfer.token_symbol.clone(),
             });
@@ -110,7 +110,7 @@ pub async fn handle_moralis_stream_response(
 
     if !balance_history_records.is_empty() {
         let response = DB
-            .insert::<Vec<TransfersHistoryRecord>>("rust_balance_history")
+            .insert::<Vec<TransfersHistoryRecord>>("wallet_balance")
             .content(balance_history_records)
             .await?;
         for record in response {

@@ -6,8 +6,6 @@ mod utils;
 
 use axum_server::server::start;
 use chrono::{DateTime, Utc};
-use ethers::types::H160;
-use ethers::utils::to_checksum;
 use futures::StreamExt;
 use models::{errors::ServerError, wallet::Wallet};
 use networking::get_block_request::get_block_request;

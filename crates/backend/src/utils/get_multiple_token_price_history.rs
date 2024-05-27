@@ -17,10 +17,6 @@ pub async fn get_multiple_token_price_history(date: DateTime<Utc>) -> Result<(),
         .timestamp_millis()
         .to_u64()
         .expect("Timestamp cannot be negative");
-    let mut timestamp = date
-        .timestamp_millis()
-        .to_u64()
-        .expect("Timestamp cannot be negative");
     let break_timestamp = timestamp - year_in_millis;
     while timestamp > break_timestamp {
         for token in token_symbols.iter() {
@@ -30,15 +26,8 @@ pub async fn get_multiple_token_price_history(date: DateTime<Utc>) -> Result<(),
             create_token_price_history(result)
                 .await
                 .map_err(|e| e.to_string())?;
-            let result = get_token_price_history(token, timestamp)
-                .await
-                .map_err(|e| e.to_string())?;
-            create_token_price_history(result)
-                .await
-                .map_err(|e| e.to_string())?;
             tracing::info!("Added {} historical price record", token);
         }
-        timestamp = timestamp - timestamp_iterator;
         timestamp = timestamp - timestamp_iterator;
     }
     Ok(())
