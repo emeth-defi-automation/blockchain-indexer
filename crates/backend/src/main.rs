@@ -11,11 +11,11 @@ use crate::utils::get_balance_history_for_wallet::get_balance_history_for_wallet
 use axum_server::server::start;
 use chrono::NaiveDateTime;
 use chrono::{DateTime, Utc};
+use futures::future::join_all;
 use futures::StreamExt;
 use networking::get_block_request::get_block_request;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use tokio::sync::Notify;
 use std::collections::HashMap;
 use streams::connect_price_stream::connect_price_stream;
 use streams::handle_price_stream_response::handle_price_stream_response;
@@ -59,18 +59,17 @@ async fn main() -> Result<(), ServerError> {
     tokio::spawn(async move {
         let _ = get_balance_history(to_block).await;
     });
-    //tokio::spawn(async move {
-    //    let _ = get_multiple_token_price_history(date).await;
-    //});
-    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
     tokio::spawn(async move {
+        let _ = get_multiple_token_price_history(date).await;
+    });
+    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+    let axum_task = tokio::spawn(async move {
         start(tx).await;
     });
-    let notify_shutdown = std::sync::Arc::new(Notify::new());
-    let notify_shutdown_clone = notify_shutdown.clone();
-    tokio::spawn(async move {
-        notify_shutdown_clone.notified().await;
-        println!("Shutting down stream1 and stream2");
+    let(shut_down_tx, mut shut_down_rx) = tokio::sync::oneshot::channel::<()>();
+    let shut_down_task = tokio::spawn(async move {
+        graceful_shutdown_listener().await;
+        let _ = shut_down_tx.send(());
     });
 
     loop {
@@ -208,16 +207,15 @@ async fn main() -> Result<(), ServerError> {
                 Some(result) = usdc_price_stream_rx.next() => {
                     handle_price_stream_response(result, &mut usdc_price_stream_tx, &mut current_close_time, &mut record_id).await?
                 }
-                _ = notify_shutdown.notified() => {
-                    println!("Received shutdown signal, closing streams.");
-                    break;
-                }
-                _ = graceful_shutdown_listener(notify_shutdown.clone()) => {
+                _ = &mut shut_down_rx => {
                     println!("Shutting down");
+                    break;
                 }
         }
     }
-    Ok(())
+    join_all([axum_task, shut_down_task]).await;
+    println!("Graceful shutdown");
+Ok(())
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -304,7 +302,7 @@ pub async fn get_block_for_date(
     Ok(body.block)
 }
 
-pub async fn graceful_shutdown_listener(notify_shutdown: std::sync::Arc<Notify>) {
+pub async fn graceful_shutdown_listener() {
     let ctrl_c = async {
         tokio::signal::ctrl_c()
             .await
@@ -328,6 +326,4 @@ pub async fn graceful_shutdown_listener(notify_shutdown: std::sync::Arc<Notify>)
         _ = terminate => {},
     }
     dbg!("Ending shutdown");
-
-    notify_shutdown.notify_waiters();
 }
