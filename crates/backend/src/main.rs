@@ -4,9 +4,9 @@ mod networking;
 mod streams;
 mod utils;
 
-use axum_server::server::start;
+use axum_server::server::{graceful_shutdown_listener, start};
 use chrono::{DateTime, Utc};
-use futures::StreamExt;
+use futures::{future::join_all, StreamExt};
 use models::{errors::ServerError, wallet::Wallet};
 use networking::get_block_request::get_block_request;
 use once_cell::sync::Lazy;
@@ -89,8 +89,13 @@ async fn main() -> Result<(), ServerError> {
         let _ = get_multiple_token_price_history(date).await;
     });
     let (moralis_stream_tx, mut moralis_stream_rx) = tokio::sync::mpsc::channel(100);
-    tokio::spawn(async move {
+    let axum_task = tokio::spawn(async move {
         start(moralis_stream_tx).await;
+    });
+    let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let shutdown_task = tokio::spawn(async move {
+        graceful_shutdown_listener().await;
+        let _ = shutdown_tx.send(());
     });
 
     loop {
@@ -107,6 +112,13 @@ async fn main() -> Result<(), ServerError> {
                 Some(result) = usdc_price_stream_rx.next() => {
                     handle_price_stream_response(result, &mut usdc_price_stream_tx, &mut current_close_time, &mut record_id).await?
                 }
+                _  = &mut shutdown_rx => {
+                    println!("Shutting down");
+                    break;
+                }
         }
     }
+    let _ = join_all([axum_task, shutdown_task]).await;
+    println!("Graceful shutdown");
+    Ok(())
 }
