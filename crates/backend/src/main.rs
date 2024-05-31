@@ -67,10 +67,6 @@ async fn main() -> Result<(), ServerError> {
     let date = Utc::now();
     let chain = "sepolia".to_string();
     let to_block = get_block_request(&chain, date).await?;
-    let mut current_close_time: HashMap<String, u64> = HashMap::new();
-    current_close_time.insert("GLMUSDT".to_string(), 0);
-    current_close_time.insert("USDCUSDT".to_string(), 0);
-    let mut record_id: HashMap<String, Thing> = HashMap::new();
     let mut wallet_address_to_timestamp: HashMap<String, DateTime<Utc>> = HashMap::new();
     let (mut golem_price_stream_tx, mut golem_price_stream_rx) =
         connect_price_stream(std::env!("GLM_TOKEN_BINANCE_SYMBOL").to_lowercase())
@@ -107,10 +103,10 @@ async fn main() -> Result<(), ServerError> {
                     handle_wallet_stream_response(result, chain.clone(), &mut wallet_address_to_timestamp).await?;
                 }
                 Some(result) = golem_price_stream_rx.next() =>  {
-                    handle_price_stream_response(result, &mut golem_price_stream_tx, &mut current_close_time, &mut record_id).await?;
+                    handle_price_stream_response(result, &mut golem_price_stream_tx).await?;
                 }
                 Some(result) = usdc_price_stream_rx.next() => {
-                    handle_price_stream_response(result, &mut usdc_price_stream_tx, &mut current_close_time, &mut record_id).await?
+                    handle_price_stream_response(result, &mut usdc_price_stream_tx).await?
                 }
                 _  = &mut shutdown_rx => {
                     println!("Shutting down");
