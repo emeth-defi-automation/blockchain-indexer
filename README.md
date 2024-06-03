@@ -28,7 +28,7 @@ LOCALHOST_ADDRESS = "localhost:8000"
 DATABASE_NAMESPACE = "test"
 DATABASE_NAME = "test"
 BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines"
-BINANCE_INTERVAL = "1m"
+BINANCE_INTERVAL = "15m"
 ```
 
 Create account on [Moralis](https://moralis.io/) and create new app. You will need to get `MORALIS_API_KEY` and `MORALIS_STREAM_ID` from there.
