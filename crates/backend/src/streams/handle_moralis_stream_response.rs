@@ -11,11 +11,6 @@ pub async fn handle_moralis_stream_response(
     result: StreamRequestBody,
     wallet_address_to_timestamp: &mut HashMap<String, DateTime<Utc>>,
 ) -> Result<(), ServerError> {
-    tracing::info!("Handling Moralis Stream Response {:?}", result.clone());
-    tracing::info!(
-        "Wallet Address to Timestamp {:?}",
-        result.erc20_transfers.clone()
-    );
     let transfers = result.erc20_transfers.clone();
     if transfers.is_empty() || !result.confirmed {
         tracing::info!("Transfer is either empty or not confirmed");
