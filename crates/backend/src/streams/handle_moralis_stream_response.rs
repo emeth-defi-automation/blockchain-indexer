@@ -49,8 +49,9 @@ pub async fn handle_moralis_stream_response(
         let is_to: Option<CountQueryResult> = is_from_and_to_in_database.take(1)?;
 
         if !is_from.is_none()
-            && DateTime::<Utc>::from_timestamp_millis(
+            && DateTime::<Utc>::from_timestamp(
                 result.block.clone().timestamp.parse::<i64>().unwrap(),
+                0,
             )
             .unwrap()
                 > *wallet_address_to_timestamp
@@ -81,8 +82,9 @@ pub async fn handle_moralis_stream_response(
         }
 
         if !is_to.is_none()
-            && DateTime::<Utc>::from_timestamp_millis(
+            && DateTime::<Utc>::from_timestamp(
                 result.block.clone().timestamp.parse::<i64>().unwrap(),
+                0,
             )
             .unwrap()
                 > *wallet_address_to_timestamp
