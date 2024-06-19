@@ -22,7 +22,7 @@ pub async fn get_block_for_date(
     let url = "https://deep-index.moralis.io/api/v2.2/dateToBlock";
     let query = DateToBlockParams {
         chain: chain.to_string(),
-        date: date,
+        date,
     };
     let response = Client::new()
         .get(url)

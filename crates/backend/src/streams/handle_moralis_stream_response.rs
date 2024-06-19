@@ -48,7 +48,7 @@ pub async fn handle_moralis_stream_response(
         let is_from: Option<CountQueryResult> = is_from_and_to_in_database.take(0)?;
         let is_to: Option<CountQueryResult> = is_from_and_to_in_database.take(1)?;
 
-        if !is_from.is_none()
+        if is_from.is_some()
             && DateTime::<Utc>::from_timestamp(
                 result.block.clone().timestamp.parse::<i64>().unwrap(),
                 0,
@@ -69,6 +69,7 @@ pub async fn handle_moralis_stream_response(
                 tb: wallet_data[0].id.tb.clone(),
                 id: wallet_data[0].id.id.clone(),
             };
+
             balance_history_records.push(TransfersHistoryRecord {
                 block_number: result.block.clone().number,
                 timestamp: Datetime(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(
@@ -81,7 +82,7 @@ pub async fn handle_moralis_stream_response(
             });
         }
 
-        if !is_to.is_none()
+        if is_to.is_some()
             && DateTime::<Utc>::from_timestamp(
                 result.block.clone().timestamp.parse::<i64>().unwrap(),
                 0,

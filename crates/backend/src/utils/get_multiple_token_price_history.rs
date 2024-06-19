@@ -30,7 +30,7 @@ pub async fn get_multiple_token_price_history(date: DateTime<Utc>) -> Result<(),
                 .map_err(|e| e.to_string())?;
             tracing::info!("Added {} historical price record", token);
         }
-        timestamp = timestamp - timestamp_iterator;
+        timestamp -= timestamp_iterator;
     }
     Ok(())
 }

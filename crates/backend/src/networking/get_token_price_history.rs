@@ -42,9 +42,9 @@ pub async fn get_token_price_history(
     let query = TokenPriceParams {
         symbol: token_symbol.to_string().to_uppercase() + std::env!("USDT_TOKEN_SYMBOL"),
         interval: std::env!("BINANCE_INTERVAL").to_string(),
-        start_time: start_time,
+        start_time,
         end_time: end_timestamp_in_millis,
-        limit: limit,
+        limit,
     };
     let client = Client::new();
     let response =

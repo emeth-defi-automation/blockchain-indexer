@@ -13,8 +13,7 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::collections::HashMap;
 use streams::{
-    connect_price_stream::connect_price_stream,
-    create_moralis_stream::{self, create_moralis_stream},
+    connect_price_stream::connect_price_stream, create_moralis_stream::create_moralis_stream,
     handle_moralis_stream_response::handle_moralis_stream_response,
     handle_price_stream_response::handle_price_stream_response,
     handle_wallet_stream_response::handle_wallet_stream_response,

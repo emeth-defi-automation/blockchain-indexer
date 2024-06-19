@@ -9,6 +9,7 @@ use surrealdb::engine::remote::ws::{Client, Ws};
 
 #[derive(Clone)]
 struct AppState {
+    #[allow(dead_code)]
     db: surrealdb::Surreal<Client>,
     tx: tokio::sync::mpsc::Sender<StreamRequestBody>,
 }
