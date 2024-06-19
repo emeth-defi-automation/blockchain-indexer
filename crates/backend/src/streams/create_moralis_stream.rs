@@ -1,6 +1,5 @@
-use axum_server::server::Erc20Transfer;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::Value;
 
 pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
     // Prepare data
@@ -58,19 +57,19 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
             ABIEventInput {
                 indexed: true,
                 internal_type: "address".to_string(),
-                name: "from".to_string(),
+                name: "src".to_string(),
                 type_field: "address".to_string(),
             },
             ABIEventInput {
                 indexed: true,
                 internal_type: "address".to_string(),
-                name: "to".to_string(),
+                name: "dst".to_string(),
                 type_field: "address".to_string(),
             },
             ABIEventInput {
                 indexed: false,
                 internal_type: "uint256".to_string(),
-                name: "value".to_string(),
+                name: "wad".to_string(),
                 type_field: "uint256".to_string(),
             },
         ],
@@ -83,20 +82,20 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
     let webhook_url = std::env!("WEBHOOK_URL").to_string();
     let description = String::from("Listen for transfers");
     let tag = String::from("transfers");
-    let chains = vec![std::env!("SEPOLIA_CHAIN_ID").to_string()];
-    let topic0 = vec!["0x".to_string()];
+    let chain_ids = vec![std::env!("SEPOLIA_CHAIN_ID").to_string()];
+    let topic0 = vec!["Transfer(address,address,uint256)".to_string()];
     let get_native_balances = vec![GetNativeBalances {
         selectors: vec!["$fromAddress".to_string(), "$toAddress".to_string()],
         type_field: "tx".to_string(),
     }];
     let stream_data = StreamData {
-        chains,
+        chain_ids,
         description,
         tag,
         include_native_txs: true,
         include_contract_logs: true,
         topic0,
-        abi: erc20_transfer_abi[0].clone(),
+        abi: erc20_transfer_abi.clone(),
         webhook_url,
         triggers,
         get_native_balances,
@@ -104,7 +103,7 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
 
     let serialized_stream_data =
         serde_json::to_string(&stream_data).expect("Failed to serialize stream data");
-
+    tracing::info!("{}", serialized_stream_data);
     let _res = client
         .put("https://api.moralis-streams.com/streams/evm")
         .header("accept", "application/json")
@@ -113,7 +112,8 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
         .body(serialized_stream_data)
         .send()
         .await?;
-    tracing::info!("{:?}", _res.text().await?);
+    let json_response: Value = _res.json().await?;
+    tracing::info!("{:?}", json_response);
     Ok(())
 }
 
@@ -148,7 +148,9 @@ struct FunctionABI {
 
 #[derive(Serialize, Deserialize, Clone)]
 struct Trigger {
+    #[serde(rename = "contractAddress")]
     contract_address: String,
+    #[serde(rename = "functionAbi")]
     function_abi: FunctionABI,
     inputs: Vec<String>,
     #[serde(rename = "type")]
@@ -183,12 +185,13 @@ struct GetNativeBalances {
 
 #[derive(Serialize, Deserialize, Clone)]
 struct StreamData {
-    chains: Vec<String>,
+    #[serde(rename = "chainIds")]
+    chain_ids: Vec<String>,
     description: String,
     tag: String,
     #[serde(rename = "includeNativeTxs")]
     include_native_txs: bool,
-    abi: ERC20TransferABI,
+    abi: Vec<ERC20TransferABI>,
     #[serde(rename = "includeContractLogs")]
     include_contract_logs: bool,
     topic0: Vec<String>,

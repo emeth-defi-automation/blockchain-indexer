@@ -13,7 +13,8 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::collections::HashMap;
 use streams::{
-    connect_price_stream::connect_price_stream, create_moralis_stream,
+    connect_price_stream::connect_price_stream,
+    create_moralis_stream::{self, create_moralis_stream},
     handle_moralis_stream_response::handle_moralis_stream_response,
     handle_price_stream_response::handle_price_stream_response,
     handle_wallet_stream_response::handle_wallet_stream_response,
@@ -68,7 +69,7 @@ async fn main() -> Result<(), ServerError> {
     let chain = "sepolia".to_string();
     let to_block = get_block_request(&chain, date).await?;
     let mut wallet_address_to_timestamp: HashMap<String, DateTime<Utc>> = HashMap::new();
-    create_moralis_stream::create_moralis_stream().await?;
+
     let (mut golem_price_stream_tx, mut golem_price_stream_rx) =
         connect_price_stream(std::env!("GLM_TOKEN_BINANCE_SYMBOL").to_lowercase())
             .await?
@@ -89,6 +90,7 @@ async fn main() -> Result<(), ServerError> {
     let axum_task = tokio::spawn(async move {
         start(moralis_stream_tx).await;
     });
+    create_moralis_stream().await?;
     let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel::<()>();
     let shutdown_task = tokio::spawn(async move {
         graceful_shutdown_listener().await;
