@@ -5,7 +5,7 @@ use reqwest::Client;
 // #[derive(Debug, Serialize)]
 // struct GetStartingBalanceParams {
 //     chain: String,
-//     to_block: u64,
+//     _: u64,
 //     #[serde(rename = "token_addresses[]")]
 //     token_addresses: Vec<String>,
 // }
@@ -13,7 +13,7 @@ use reqwest::Client;
 pub async fn get_starting_balance(
     wallet_address: &String,
     chain: &String,
-    to_block: u64,
+    _to_block: u64,
 ) -> Result<Vec<GetStartingBalanceResponse>, reqwest::Error> {
     let glm_token_address = std::env!("GLM_TOKEN_ADDRESS").to_string();
     let usdc_token_address = std::env!("USDC_TOKEN_ADDRESS").to_string();
@@ -29,7 +29,7 @@ pub async fn get_starting_balance(
     let client = Client::new();
     let mut request_builder = client.get(&url);
     request_builder = request_builder.query(&[("chain", chain)]);
-    // request_builder = request_builder.query(&[("to_block", &to_block)]);
+    // request_builder = request_builder.query(&[("_", &_)]);
 
     for (i, address) in token_addresses.iter().enumerate() {
         let param_name = format!("token_addresses[{}]", i);

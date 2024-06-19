@@ -13,6 +13,6 @@ pub async fn add_wallet_address_to_moralis_stream(address: &str) -> Result<(), r
         .body(format!("{{\"address\": \"{}\"}}", address))
         .send()
         .await?;
-    println!("Added new wallet");
+    tracing::info!("{:?}", _res.text().await?);
     Ok(())
 }

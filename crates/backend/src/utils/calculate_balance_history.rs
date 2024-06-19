@@ -10,14 +10,14 @@ use std::string::ParseError;
 use surrealdb::sql::Datetime;
 
 pub async fn calculate_balance_history(
-    current_balance: &mut Vec<GetStartingBalanceResponse>,
-    transfer_history: &Vec<TransfersHistoryResultResponse>,
+    current_balance: &mut [GetStartingBalanceResponse],
+    transfer_history: &[TransfersHistoryResultResponse],
     wallet: &Wallet,
 ) -> Result<Vec<TransfersHistoryRecord>, ParseError> {
     let mut history_records: Vec<TransfersHistoryRecord> = Vec::new();
     for token in current_balance.iter_mut() {
         let filtered_history: Vec<&TransfersHistoryResultResponse> = transfer_history
-            .into_iter()
+            .iter()
             .filter(|item| item.token_symbol == token.symbol)
             .collect();
         for transfer in filtered_history.iter() {
@@ -44,10 +44,10 @@ pub async fn calculate_balance_history(
 }
 
 fn calculate_new_token_balance(
-    transfer_from_address: &String,
-    wallet_address: &String,
-    token_balance: &String,
-    transfer_value: &String,
+    transfer_from_address: &str,
+    wallet_address: &str,
+    token_balance: &str,
+    transfer_value: &str,
 ) -> Result<BigUint, ParseError> {
     let parsed_token_balance = token_balance.parse::<BigUint>().unwrap_or_default();
     let parsed_transfer_value = transfer_value.parse::<BigUint>().unwrap_or_default();

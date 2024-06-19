@@ -23,7 +23,7 @@ pub async fn get_balance_history_for_wallet(
                 .await?;
         create_balance_history(&calculated_balance_history).await?;
         cursor = transfer_history.cursor;
-        if cursor == Option::None {
+        if cursor.is_none() {
             break;
         }
     }
