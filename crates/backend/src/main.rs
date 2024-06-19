@@ -89,6 +89,7 @@ async fn main() -> Result<(), ServerError> {
     let axum_task = tokio::spawn(async move {
         start(moralis_stream_tx).await;
     });
+    // TODO: loop this shit
     create_moralis_stream().await?;
     let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel::<()>();
     let shutdown_task = tokio::spawn(async move {

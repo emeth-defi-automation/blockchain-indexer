@@ -76,13 +76,14 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
         name: "Transfer".to_string(),
         type_field: "event".to_string(),
     }];
-
+    // TODO: CREATE args with CLAP
     let client = reqwest::Client::new();
     let moralis_api_key = std::env!("MORALIS_API_KEY");
     let webhook_url = std::env!("WEBHOOK_URL").to_string();
     let description = String::from("Listen for transfers");
     let tag = String::from("transfers");
     let chain_ids = vec![std::env!("SEPOLIA_CHAIN_ID").to_string()];
+    // TODO: create enums that serialize to string
     let topic0 = vec!["Transfer(address,address,uint256)".to_string()];
     let get_native_balances = vec![GetNativeBalances {
         selectors: vec!["$fromAddress".to_string(), "$toAddress".to_string()],
@@ -100,18 +101,23 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
         triggers,
         get_native_balances,
     };
-
+    // TODO: URL TO CONST, JOIN TO CONNECT DATA TO URL
     let serialized_stream_data =
         serde_json::to_string(&stream_data).expect("Failed to serialize stream data");
     tracing::info!("{}", serialized_stream_data);
+
+    let moralis_api_stream_url = std::env!("MORALIS_API_STREAM_URL");
     let _res = client
-        .put("https://api.moralis-streams.com/streams/evm")
+        .put(moralis_api_stream_url)
+        // TODO: Create struct for headers to insert one, instead of multi .header() fn calls
         .header("accept", "application/json")
         .header("X-API-Key", moralis_api_key)
         .header("content-type", "application/json")
         .body(serialized_stream_data)
         .send()
         .await?;
+    // TODO: HANDLE RESPONSE to parse only necessary part that includes error msg
+    // if reponses are different use flatten enum, if have similiar fields then parse to single one e.g. message field
     let json_response: Value = _res.json().await?;
     tracing::info!("{:?}", json_response);
     Ok(())
