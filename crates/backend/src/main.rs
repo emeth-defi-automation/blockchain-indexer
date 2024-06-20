@@ -44,17 +44,15 @@ async fn main() -> Result<(), ServerError> {
 
     let args = Args::parse();
 
-    DB.connect::<Ws>(std::env!("LOCALHOST_ADDRESS")).await?;
+    DB.connect::<Ws>(args.db_address.to_string()).await?;
 
     DB.signin(Root {
-        username: "root",
-        password: "root",
+        username: &args.db_username,
+        password: &args.db_password,
     })
     .await?;
 
-    DB.use_ns(std::env!("DATABASE_NAMESPACE"))
-        .use_db(std::env!("DATABASE_NAME"))
-        .await?;
+    DB.use_ns(args.db_namespace).use_db(args.db_name).await?;
 
     let date = Utc::now();
     let chain = "sepolia".to_string();
@@ -62,11 +60,11 @@ async fn main() -> Result<(), ServerError> {
     let mut wallet_address_to_timestamp: HashMap<String, DateTime<Utc>> = HashMap::new();
 
     let (mut golem_price_stream_tx, mut golem_price_stream_rx) =
-        connect_price_stream(std::env!("GLM_TOKEN_BINANCE_SYMBOL").to_lowercase())
+        connect_price_stream(args.glm_token_binance_symbol.to_lowercase())
             .await?
             .split();
     let (mut usdc_price_stream_tx, mut usdc_price_stream_rx) =
-        connect_price_stream(std::env!("USDC_TOKEN_BINANCE_SYMBOL").to_lowercase())
+        connect_price_stream(args.usdc_token_binance_symbol.to_lowercase())
             .await?
             .split();
     let mut wallet_balance_history_stream = DB.select::<Vec<Wallet>>("wallet").live().await?;
