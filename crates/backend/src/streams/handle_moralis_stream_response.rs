@@ -124,8 +124,7 @@ pub async fn handle_moralis_stream_response(
             .content(balance_history_records)
             .await?;
         for record in response {
-            // TODO: change to info
-            tracing::debug!("Inserted Record: {:?}", record);
+            tracing::info!("Inserted Record: {:?}", record);
         }
     }
     Ok(())

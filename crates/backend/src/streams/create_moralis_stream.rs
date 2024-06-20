@@ -1,8 +1,9 @@
-use serde::{Deserialize, Serialize};
+use reqwest::{header::HeaderMap, Client};
+use serde::ser::{SerializeSeq, Serializer};
+use serde::Deserialize;
+use serde::Serialize;
 use serde_json::Value;
-
 pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
-    // Prepare data
     let balance_of_sender_abi = FunctionABI {
         inputs: vec![ABIInput {
             internal_type: "address".to_string(),
@@ -77,18 +78,26 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
         type_field: "event".to_string(),
     }];
     // TODO: CREATE args with CLAP
-    let client = reqwest::Client::new();
+    let client = Client::new();
+
     let moralis_api_key = std::env!("MORALIS_API_KEY");
+
     let webhook_url = std::env!("WEBHOOK_URL").to_string();
+
     let description = String::from("Listen for transfers");
+
     let tag = String::from("transfers");
+
     let chain_ids = vec![std::env!("SEPOLIA_CHAIN_ID").to_string()];
-    // TODO: create enums that serialize to string
-    let topic0 = vec!["Transfer(address,address,uint256)".to_string()];
+
+    let topic0 =
+        vec![serde_json::to_string(&Topic::Transfer).expect("Failed to serialize Topic::Transfer")];
+
     let get_native_balances = vec![GetNativeBalances {
         selectors: vec!["$fromAddress".to_string(), "$toAddress".to_string()],
         type_field: "tx".to_string(),
     }];
+
     let stream_data = StreamData {
         chain_ids,
         description,
@@ -101,18 +110,20 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
         triggers,
         get_native_balances,
     };
-    // TODO: URL TO CONST, JOIN TO CONNECT DATA TO URL
+
     let serialized_stream_data =
         serde_json::to_string(&stream_data).expect("Failed to serialize stream data");
-    tracing::info!("{}", serialized_stream_data);
 
     let moralis_api_stream_url = std::env!("MORALIS_API_STREAM_URL");
+
+    let mut headers = HeaderMap::new();
+    headers.insert("accept", "application/json".parse().unwrap());
+    headers.insert("X-API-Key", moralis_api_key.parse().unwrap());
+    headers.insert("content-type", "application/json".parse().unwrap());
+
     let response = client
         .put(moralis_api_stream_url)
-        // TODO: Create struct for headers to insert one, instead of multi .header() fn calls
-        .header("accept", "application/json")
-        .header("X-API-Key", moralis_api_key)
-        .header("content-type", "application/json")
+        .headers(headers)
         .body(serialized_stream_data)
         .send()
         .await?;
@@ -206,4 +217,22 @@ struct StreamData {
     triggers: Vec<Trigger>,
     #[serde(rename = "getNativeBalances")]
     get_native_balances: Vec<GetNativeBalances>,
+}
+
+#[derive(Debug)]
+enum Topic {
+    Transfer,
+}
+
+impl Serialize for Topic {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let topic_str = match *self {
+            Topic::Transfer => "Transfer(address,address,uint256)",
+            // Dodaj tutaj obsługę dodatkowych tematów
+        };
+        serializer.serialize_str(topic_str)
+    }
 }
