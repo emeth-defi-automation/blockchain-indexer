@@ -6,8 +6,16 @@ use serde::Serialize;
 use serde_json::{Error, Value};
 use std::time::Duration;
 use tokio::time::sleep;
+use url::Url;
 
-async fn create_moralis_stream() -> Result<CreateMoralisStreamResult, reqwest::Error> {
+async fn create_moralis_stream(
+    moralis_api_key: &str,
+    moralis_api_stream_url: Url,
+    webhook_url: Url,
+    description: String,
+    tag: String,
+    chain_ids: Vec<String>,
+) -> Result<CreateMoralisStreamResult, reqwest::Error> {
     let balance_of_sender_abi = FunctionABI {
         inputs: vec![ABIInput {
             internal_type: "address".to_string(),
@@ -82,13 +90,6 @@ async fn create_moralis_stream() -> Result<CreateMoralisStreamResult, reqwest::E
         type_field: "event".to_string(),
     }];
 
-    let client = Client::new();
-    let moralis_api_key = std::env!("MORALIS_API_KEY");
-    let webhook_url = std::env!("WEBHOOK_URL").to_string();
-    let description = String::from("Listen for transfers");
-    let tag = String::from("transfers");
-    let chain_ids = vec![std::env!("SEPOLIA_CHAIN_ID").to_string()];
-
     let topic0 = vec![serde_json::to_string(&Topic::Transfer)
         .expect("Failed to serialize Topic::Transfer")
         .trim_matches('"')
@@ -115,14 +116,12 @@ async fn create_moralis_stream() -> Result<CreateMoralisStreamResult, reqwest::E
     let serialized_stream_data =
         serde_json::to_string(&stream_data).expect("Failed to serialize stream data");
 
-    let moralis_api_stream_url = std::env!("MORALIS_API_STREAM_URL");
-
     let mut headers = HeaderMap::new();
     headers.insert("accept", "application/json".parse().unwrap());
     headers.insert("X-API-Key", moralis_api_key.parse().unwrap());
     headers.insert("content-type", "application/json".parse().unwrap());
 
-    let response = client
+    let response = Client::new()
         .put(moralis_api_stream_url)
         .headers(headers)
         .body(serialized_stream_data)
@@ -143,11 +142,26 @@ fn check_id_exists(data: &str) -> Result<Option<String>, Error> {
 }
 pub async fn create_moralis_stream_with_retries(
     max_retries: i32,
+    moralis_api_key: &str,
+    moralis_api_stream_url: Url,
+    webhook_url: Url,
+    description: String,
+    tag: String,
+    chain_ids: Vec<String>,
 ) -> Result<CreateMoralisStreamResult, reqwest::Error> {
     let mut attempt = 0;
     let mut failure_message = String::new();
     while attempt < max_retries {
-        match create_moralis_stream().await {
+        match create_moralis_stream(
+            moralis_api_key,
+            moralis_api_stream_url.clone(),
+            webhook_url.clone(),
+            description.clone(),
+            tag.clone(),
+            chain_ids.clone(),
+        )
+        .await
+        {
             Ok(CreateMoralisStreamResult::Success(message)) => {
                 return Ok(CreateMoralisStreamResult::Success(message));
             }
@@ -248,7 +262,7 @@ struct StreamData {
     include_contract_logs: bool,
     topic0: Vec<String>,
     #[serde(rename = "webhookUrl")]
-    webhook_url: String,
+    webhook_url: Url,
     triggers: Vec<Trigger>,
     #[serde(rename = "getNativeBalances")]
     get_native_balances: Vec<GetNativeBalances>,

@@ -1,11 +1,14 @@
+mod args;
 mod database;
 mod models;
 mod networking;
 mod streams;
 mod utils;
 
+use args::Args;
 use axum_server::server::{graceful_shutdown_listener, start};
 use chrono::{DateTime, Utc};
+use clap::Parser;
 use futures::{future::join_all, StreamExt};
 use models::{errors::ServerError, wallet::Wallet};
 use networking::get_block_request::get_block_request;
@@ -33,29 +36,15 @@ use utils::{
 
 static DB: Lazy<Surreal<ws::Client>> = Lazy::new(Surreal::init);
 
-#[derive(Debug, serde::Deserialize)]
-pub struct IdQueryResult {
-    pub id: Thing,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct QueryThing {
-    pub tb: String,
-    pub id: String,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct CountQueryResult {
-    count: i32,
-}
-
 #[tokio::main]
 async fn main() -> Result<(), ServerError> {
     //initialize tracing
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();
+
+    let args = Args::parse();
+
     DB.connect::<Ws>(std::env!("LOCALHOST_ADDRESS")).await?;
     DB.signin(Root {
         username: "root",
@@ -91,7 +80,17 @@ async fn main() -> Result<(), ServerError> {
         start(moralis_stream_tx).await;
     });
     let mut message_from_moralis_stream_creation = String::new();
-    match create_moralis_stream_with_retries(10).await {
+    match create_moralis_stream_with_retries(
+        10,
+        &args.moralis_api_key,
+        args.moralis_api_stream_url,
+        args.webhook_url,
+        args.stream_description,
+        args.stream_tag,
+        vec![args.chain_id],
+    )
+    .await
+    {
         Ok(CreateMoralisStreamResult::Success(message)) => {
             message_from_moralis_stream_creation = message;
             tracing::info!(
@@ -136,4 +135,21 @@ async fn main() -> Result<(), ServerError> {
     let _ = join_all([axum_task, shutdown_task]).await;
     println!("Graceful shutdown");
     Ok(())
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct IdQueryResult {
+    pub id: Thing,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct QueryThing {
+    pub tb: String,
+    pub id: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct CountQueryResult {
+    count: i32,
 }
