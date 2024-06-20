@@ -262,7 +262,6 @@ impl Serialize for Topic {
     {
         let topic_str = match *self {
             Topic::Transfer => "Transfer(address,address,uint256)",
-            // Dodaj tutaj obsługę dodatkowych tematów
         };
         serializer.serialize_str(topic_str)
     }
