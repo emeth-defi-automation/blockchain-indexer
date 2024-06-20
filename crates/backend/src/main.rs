@@ -79,7 +79,7 @@ async fn main() -> Result<(), ServerError> {
     .split();
     let mut wallet_balance_history_stream = DB.select::<Vec<Wallet>>("wallet").live().await?;
 
-    // Clnoe because of async move
+    // Clone because of async move
     let glm_token_address = args.glm_token_address.clone();
     let usdc_token_address = args.usdc_token_address.clone();
     let usdt_token_address = args.usdt_token_address.clone();
