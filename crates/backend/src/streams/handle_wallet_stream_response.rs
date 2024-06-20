@@ -10,12 +10,15 @@ use crate::{
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use surrealdb::{Action, Error};
+use url::Url;
 
 pub async fn handle_wallet_stream_response(
     result: Result<surrealdb::Notification<Wallet>, Error>,
     chain: String,
     wallet_address_to_timestamp: &mut HashMap<String, DateTime<Utc>>,
     stream_id: &str,
+    moralis_api_key: &str,
+    moralis_api_stream_url: Url,
 ) -> Result<(), ServerError> {
     match result {
         Ok(notification) if notification.action == Action::Create => {
@@ -29,7 +32,13 @@ pub async fn handle_wallet_stream_response(
                     return Ok(());
                 }
             };
-            add_wallet_address_to_moralis_stream(&address_checksummed, stream_id).await?;
+            add_wallet_address_to_moralis_stream(
+                &address_checksummed,
+                stream_id,
+                moralis_api_key,
+                moralis_api_stream_url,
+            )
+            .await?;
 
             let date = Utc::now();
             wallet_address_to_timestamp.insert(address_checksummed, date);
@@ -49,7 +58,13 @@ pub async fn handle_wallet_stream_response(
                 }
             };
 
-            delete_wallet_address_from_moralis_stream(&address_checksummed, stream_id).await?;
+            delete_wallet_address_from_moralis_stream(
+                &address_checksummed,
+                stream_id,
+                moralis_api_key,
+                moralis_api_stream_url,
+            )
+            .await?;
         }
         Ok(_) => tracing::info!("Received a notification other than Create"),
         Err(e) => tracing::error!("Error occured in select!: {}", e),

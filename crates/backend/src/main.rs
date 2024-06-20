@@ -38,7 +38,6 @@ static DB: Lazy<Surreal<ws::Client>> = Lazy::new(Surreal::init);
 
 #[tokio::main]
 async fn main() -> Result<(), ServerError> {
-    //initialize tracing
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();
@@ -46,14 +45,17 @@ async fn main() -> Result<(), ServerError> {
     let args = Args::parse();
 
     DB.connect::<Ws>(std::env!("LOCALHOST_ADDRESS")).await?;
+
     DB.signin(Root {
         username: "root",
         password: "root",
     })
     .await?;
+
     DB.use_ns(std::env!("DATABASE_NAMESPACE"))
         .use_db(std::env!("DATABASE_NAME"))
         .await?;
+
     let date = Utc::now();
     let chain = "sepolia".to_string();
     let to_block = get_block_request(&chain, date).await?;
@@ -72,18 +74,22 @@ async fn main() -> Result<(), ServerError> {
     tokio::spawn(async move {
         let _ = get_balance_history(to_block).await;
     });
+
     tokio::spawn(async move {
         let _ = get_multiple_token_price_history(date).await;
     });
+
     let (moralis_stream_tx, mut moralis_stream_rx) = tokio::sync::mpsc::channel(100);
+
     let axum_task = tokio::spawn(async move {
         start(moralis_stream_tx).await;
     });
+
     let mut message_from_moralis_stream_creation = String::new();
     match create_moralis_stream_with_retries(
         10,
         &args.moralis_api_key,
-        args.moralis_api_stream_url,
+        args.moralis_api_stream_url.clone(),
         args.webhook_url,
         args.stream_description,
         args.stream_tag,
@@ -118,7 +124,7 @@ async fn main() -> Result<(), ServerError> {
                     handle_moralis_stream_response(result, &mut wallet_address_to_timestamp).await?;
                 }
                 Some(result) = wallet_balance_history_stream.next() => {
-                    handle_wallet_stream_response(result, chain.clone(), &mut wallet_address_to_timestamp, &message_from_moralis_stream_creation).await?;
+                    handle_wallet_stream_response(result, chain.clone(), &mut wallet_address_to_timestamp, &message_from_moralis_stream_creation, &args.moralis_api_key, args.moralis_api_stream_url.clone()).await?;
                 }
                 Some(result) = golem_price_stream_rx.next() =>  {
                     handle_price_stream_response(result, &mut golem_price_stream_tx).await?;
