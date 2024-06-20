@@ -6,6 +6,7 @@ mod utils;
 
 use axum_server::server::{graceful_shutdown_listener, start};
 use chrono::{DateTime, Utc};
+use clap::builder::Str;
 use futures::{future::join_all, StreamExt};
 use models::{errors::ServerError, wallet::Wallet};
 use networking::get_block_request::get_block_request;
@@ -90,10 +91,14 @@ async fn main() -> Result<(), ServerError> {
     let axum_task = tokio::spawn(async move {
         start(moralis_stream_tx).await;
     });
-
+    let mut message_from_moralis_stream_creation = String::new();
     match create_moralis_stream_with_retries(10).await {
         Ok(CreateMoralisStreamResult::Success(message)) => {
-            tracing::info!("Moralis stream created: {}", message);
+            message_from_moralis_stream_creation = message;
+            tracing::info!(
+                "Moralis stream created: {}",
+                message_from_moralis_stream_creation
+            );
         }
         Ok(CreateMoralisStreamResult::Failure(message)) => {
             tracing::error!("Failed to create Moralis stream: {}", message);
@@ -115,7 +120,7 @@ async fn main() -> Result<(), ServerError> {
                     handle_moralis_stream_response(result, &mut wallet_address_to_timestamp).await?;
                 }
                 Some(result) = wallet_balance_history_stream.next() => {
-                    handle_wallet_stream_response(result, chain.clone(), &mut wallet_address_to_timestamp).await?;
+                    handle_wallet_stream_response(result, chain.clone(), &mut wallet_address_to_timestamp, &message_from_moralis_stream_creation).await?;
                 }
                 Some(result) = golem_price_stream_rx.next() =>  {
                     handle_price_stream_response(result, &mut golem_price_stream_tx).await?;

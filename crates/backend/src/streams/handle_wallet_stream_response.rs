@@ -15,6 +15,7 @@ pub async fn handle_wallet_stream_response(
     result: Result<surrealdb::Notification<Wallet>, Error>,
     chain: String,
     wallet_address_to_timestamp: &mut HashMap<String, DateTime<Utc>>,
+    stream_id: &str,
 ) -> Result<(), ServerError> {
     match result {
         Ok(notification) if notification.action == Action::Create => {
@@ -28,7 +29,7 @@ pub async fn handle_wallet_stream_response(
                     return Ok(());
                 }
             };
-            add_wallet_address_to_moralis_stream(&address_checksummed).await?;
+            add_wallet_address_to_moralis_stream(&address_checksummed, stream_id).await?;
 
             let date = Utc::now();
             wallet_address_to_timestamp.insert(address_checksummed, date);
@@ -48,7 +49,7 @@ pub async fn handle_wallet_stream_response(
                 }
             };
 
-            delete_wallet_address_from_moralis_stream(&address_checksummed).await?;
+            delete_wallet_address_from_moralis_stream(&address_checksummed, stream_id).await?;
         }
         Ok(_) => tracing::info!("Received a notification other than Create"),
         Err(e) => tracing::error!("Error occured in select!: {}", e),

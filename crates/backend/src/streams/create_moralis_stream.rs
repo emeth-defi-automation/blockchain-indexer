@@ -131,12 +131,16 @@ async fn create_moralis_stream() -> Result<CreateMoralisStreamResult, reqwest::E
 
     let response_text = response.text().await?;
     match check_id_exists(&response_text) {
-        Ok(true) => Ok(CreateMoralisStreamResult::Success(response_text)),
-        Ok(false) => Ok(CreateMoralisStreamResult::Failure(response_text)),
+        Ok(Some(id)) => Ok(CreateMoralisStreamResult::Success(id)),
+        Ok(None) => Ok(CreateMoralisStreamResult::Failure(response_text)),
         Err(e) => Ok(CreateMoralisStreamResult::Failure(e.to_string())),
     }
 }
 
+fn check_id_exists(data: &str) -> Result<Option<String>, Error> {
+    let v: Value = serde_json::from_str(data)?;
+    Ok(v.get("id").and_then(Value::as_str).map(|s| s.to_string()))
+}
 pub async fn create_moralis_stream_with_retries(
     max_retries: i32,
 ) -> Result<CreateMoralisStreamResult, reqwest::Error> {
@@ -265,11 +269,6 @@ impl Serialize for Topic {
         };
         serializer.serialize_str(topic_str)
     }
-}
-
-fn check_id_exists(data: &str) -> Result<bool, Error> {
-    let v: Value = serde_json::from_str(data)?;
-    Ok(v.get("id").and_then(Value::as_str).is_some())
 }
 
 pub enum CreateMoralisStreamResult {

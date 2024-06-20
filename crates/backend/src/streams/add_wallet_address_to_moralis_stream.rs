@@ -2,20 +2,17 @@ use reqwest::{header::HeaderMap, Client, Url};
 
 use crate::streams::delete_wallet_address_from_moralis_stream::WalletAddress;
 
-pub async fn add_wallet_address_to_moralis_stream(address: &str) -> Result<(), reqwest::Error> {
+pub async fn add_wallet_address_to_moralis_stream(
+    address: &str,
+    stream_id: &str,
+) -> Result<(), reqwest::Error> {
     let moralis_api_key = std::env!("MORALIS_API_KEY");
-    let moralis_stream_id = std::env!("MORALIS_STREAM_ID");
     let moralis_api_stream_url = std::env!("MORALIS_API_STREAM_URL");
     let client = Client::new();
 
-    tracing::info!(
-        "Adding wallet address to Moralis stream: {}",
-        moralis_stream_id
-    );
-
     let url = Url::parse(moralis_api_stream_url)
         .expect("Failed to parse MORALIS_API_STREAM_URL")
-        .join(&(moralis_stream_id.to_owned() + "/address"))
+        .join(&(stream_id.to_owned() + "/address"))
         .expect("Failed to join base url with stream id and address");
 
     let mut headers = HeaderMap::new();

@@ -1,15 +1,17 @@
 use reqwest::{header::HeaderMap, Client, Error as ReqwestError, Url};
 use serde::Serialize;
 
-pub async fn delete_wallet_address_from_moralis_stream(address: &str) -> Result<(), ReqwestError> {
+pub async fn delete_wallet_address_from_moralis_stream(
+    address: &str,
+    stream_id: &str,
+) -> Result<(), ReqwestError> {
     let moralis_api_key = std::env!("MORALIS_API_KEY");
-    let moralis_stream_id = std::env!("MORALIS_STREAM_ID");
     let moralis_api_stream_url = std::env!("MORALIS_API_STREAM_URL");
     let client = Client::new();
 
     let url = Url::parse(moralis_api_stream_url)
         .expect("Failed to parse MORALIS_API_STREAM_URL")
-        .join(&(moralis_stream_id.to_owned() + "/address"))
+        .join(&(stream_id.to_owned() + "/address"))
         .expect("Failed to join base url with stream id and address");
 
     let mut headers = HeaderMap::new();
