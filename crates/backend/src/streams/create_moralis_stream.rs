@@ -1,9 +1,13 @@
+use rand::{thread_rng, Rng};
 use reqwest::{header::HeaderMap, Client};
-use serde::ser::{SerializeSeq, Serializer};
+use serde::ser::Serializer;
 use serde::Deserialize;
 use serde::Serialize;
-use serde_json::Value;
-pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
+use serde_json::{Error, Value};
+use std::time::Duration;
+use tokio::time::sleep;
+
+async fn create_moralis_stream() -> Result<CreateMoralisStreamResult, reqwest::Error> {
     let balance_of_sender_abi = FunctionABI {
         inputs: vec![ABIInput {
             internal_type: "address".to_string(),
@@ -77,14 +81,14 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
         name: "Transfer".to_string(),
         type_field: "event".to_string(),
     }];
-    // TODO: CREATE args with CLAP
+
     let client = Client::new();
     let moralis_api_key = std::env!("MORALIS_API_KEY");
     let webhook_url = std::env!("WEBHOOK_URL").to_string();
     let description = String::from("Listen for transfers");
     let tag = String::from("transfers");
     let chain_ids = vec![std::env!("SEPOLIA_CHAIN_ID").to_string()];
-    // TODO: create enums that serialize to string
+
     let topic0 = vec![serde_json::to_string(&Topic::Transfer)
         .expect("Failed to serialize Topic::Transfer")
         .trim_matches('"')
@@ -94,6 +98,7 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
         selectors: vec!["$fromAddress".to_string(), "$toAddress".to_string()],
         type_field: "tx".to_string(),
     }];
+
     let stream_data = StreamData {
         chain_ids,
         description,
@@ -123,11 +128,41 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
         .body(serialized_stream_data)
         .send()
         .await?;
-    // TODO: HANDLE RESPONSE to parse only necessary part that includes error msg
-    // if reponses are different use flatten enum, if have similiar fields then parse to single one e.g. message field
-    let json_response: Value = response.json().await?;
-    tracing::info!("{:?}", json_response);
-    Ok(())
+
+    let response_text = response.text().await?;
+    match check_id_exists(&response_text) {
+        Ok(true) => Ok(CreateMoralisStreamResult::Success(response_text)),
+        Ok(false) => Ok(CreateMoralisStreamResult::Failure(response_text)),
+        Err(e) => Ok(CreateMoralisStreamResult::Failure(e.to_string())),
+    }
+}
+
+pub async fn create_moralis_stream_with_retries(
+    max_retries: i32,
+) -> Result<CreateMoralisStreamResult, reqwest::Error> {
+    let mut attempt = 0;
+    let mut failure_message = String::new();
+    while attempt < max_retries {
+        match create_moralis_stream().await {
+            Ok(CreateMoralisStreamResult::Success(message)) => {
+                return Ok(CreateMoralisStreamResult::Success(message));
+            }
+            Ok(CreateMoralisStreamResult::Failure(message)) => {
+                failure_message = message;
+                tracing::info!(
+                    "Moralis Stream Creation Attempt {} failed, retrying...",
+                    attempt + 1
+                );
+            }
+            Err(e) => return Err(e),
+        }
+
+        attempt += 1;
+        let sleep_duration = thread_rng().gen_range(3..=5);
+        sleep(Duration::from_secs(sleep_duration)).await;
+    }
+
+    Ok(CreateMoralisStreamResult::Failure(failure_message))
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -231,4 +266,14 @@ impl Serialize for Topic {
         };
         serializer.serialize_str(topic_str)
     }
+}
+
+fn check_id_exists(data: &str) -> Result<bool, Error> {
+    let v: Value = serde_json::from_str(data)?;
+    Ok(v.get("id").and_then(Value::as_str).is_some())
+}
+
+pub enum CreateMoralisStreamResult {
+    Success(String),
+    Failure(String),
 }

@@ -38,7 +38,7 @@ pub async fn handle_moralis_stream_response(
         let sql = "
                 SELECT count() FROM wallet WHERE address = type::string($wallet_from_address);
                 SELECT count() FROM wallet WHERE address = type::string($wallet_to_address);";
-        // TODO: check if multipple bind could be merged into single struct bind
+
         let mut is_from_and_to_in_database = DB
             .query(sql)
             .bind(("wallet_from_address", &from_address_checksummed))
@@ -106,7 +106,6 @@ pub async fn handle_moralis_stream_response(
 
             balance_history_records.push(TransfersHistoryRecord {
                 block_number: result.block.clone().number,
-                // TODO: FIX THIS
                 timestamp: Datetime(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(
                     result.block.clone().timestamp.parse::<i64>().unwrap(),
                     0,
