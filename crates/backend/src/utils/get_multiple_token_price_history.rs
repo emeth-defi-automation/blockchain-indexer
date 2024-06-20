@@ -7,8 +7,13 @@ use crate::{
 };
 use chrono::{DateTime, Duration, Utc};
 use num_traits::ToPrimitive;
+use url::Url;
 
-pub async fn get_multiple_token_price_history(date: DateTime<Utc>) -> Result<(), String> {
+pub async fn get_multiple_token_price_history(
+    date: DateTime<Utc>,
+    binance_klines_url: Url,
+    binance_interval: &str,
+) -> Result<(), String> {
     let token_symbols = get_token_symbols().await.map_err(|e| e.to_string())?;
     let timestamp_iterator = 720 * 15 * 60 * 1000;
     let mut timestamp = date
@@ -22,9 +27,14 @@ pub async fn get_multiple_token_price_history(date: DateTime<Utc>) -> Result<(),
         .expect("Epoch cannot be negative");
     while timestamp >= break_timestamp {
         for token in token_symbols.iter() {
-            let result = get_token_price_history(token, timestamp)
-                .await
-                .map_err(|e| e.to_string())?;
+            let result = get_token_price_history(
+                token,
+                timestamp,
+                binance_klines_url.clone(),
+                binance_interval,
+            )
+            .await
+            .map_err(|e| e.to_string())?;
             create_token_price_history(result)
                 .await
                 .map_err(|e| e.to_string())?;

@@ -10,12 +10,19 @@ use crate::{
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use surrealdb::{Action, Error};
+use url::Url;
 
 pub async fn handle_wallet_stream_response(
     result: Result<surrealdb::Notification<Wallet>, Error>,
     chain: String,
     wallet_address_to_timestamp: &mut HashMap<String, DateTime<Utc>>,
     stream_id: &str,
+    moralis_api_key: &str,
+    moralis_api_stream_url: Url,
+    glm_token_address: &str,
+    usdc_token_address: &str,
+    usdt_token_address: &str,
+    moralis_api_deep_index_url: Url,
 ) -> Result<(), ServerError> {
     match result {
         Ok(notification) if notification.action == Action::Create => {
@@ -29,13 +36,29 @@ pub async fn handle_wallet_stream_response(
                     return Ok(());
                 }
             };
-            add_wallet_address_to_moralis_stream(&address_checksummed, stream_id).await?;
+            add_wallet_address_to_moralis_stream(
+                &address_checksummed,
+                stream_id,
+                moralis_api_key,
+                moralis_api_stream_url,
+            )
+            .await?;
 
             let date = Utc::now();
             wallet_address_to_timestamp.insert(address_checksummed, date);
-            let to_block = get_block_for_date(&chain, date).await?;
+            let to_block = get_block_for_date(&chain, date, moralis_api_key).await?;
 
-            get_balance_history_for_wallet(&notification.data, &chain, to_block).await?;
+            get_balance_history_for_wallet(
+                &notification.data,
+                &chain,
+                to_block,
+                glm_token_address,
+                usdc_token_address,
+                usdt_token_address,
+                moralis_api_deep_index_url,
+                moralis_api_key,
+            )
+            .await?;
         }
         Ok(notification) if notification.action == Action::Delete => {
             tracing::debug!("Received a delete notification: {:?}", notification.data);
@@ -49,7 +72,13 @@ pub async fn handle_wallet_stream_response(
                 }
             };
 
-            delete_wallet_address_from_moralis_stream(&address_checksummed, stream_id).await?;
+            delete_wallet_address_from_moralis_stream(
+                &address_checksummed,
+                stream_id,
+                moralis_api_key,
+                moralis_api_stream_url,
+            )
+            .await?;
         }
         Ok(_) => tracing::info!("Received a notification other than Create"),
         Err(e) => tracing::error!("Error occured in select!: {}", e),

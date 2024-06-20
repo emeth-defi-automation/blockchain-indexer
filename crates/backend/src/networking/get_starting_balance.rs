@@ -1,5 +1,6 @@
 use crate::models::responses::starting_balance::GetStartingBalanceResponse;
 use reqwest::Client;
+use url::Url;
 // use serde::Serialize;
 
 // #[derive(Debug, Serialize)]
@@ -14,20 +15,20 @@ pub async fn get_starting_balance(
     wallet_address: &String,
     chain: &String,
     _to_block: u64,
+    glm_token_address: &str,
+    usdc_token_address: &str,
+    usdt_token_address: &str,
+    moralis_api_deep_index_url: Url,
+    moralis_api_key: &str,
 ) -> Result<Vec<GetStartingBalanceResponse>, reqwest::Error> {
-    let glm_token_address = std::env!("GLM_TOKEN_ADDRESS").to_string();
-    let usdc_token_address = std::env!("USDC_TOKEN_ADDRESS").to_string();
-    let usdt_token_address = std::env!("USDT_TOKEN_ADDRESS").to_string();
-    let token_addresses: Vec<String> =
+    let token_addresses: Vec<&str> =
         vec![glm_token_address, usdc_token_address, usdt_token_address];
-
-    let url = format!(
-        "https://deep-index.moralis.io/api/v2.2/{}/erc20",
-        wallet_address
-    );
+    let url = moralis_api_deep_index_url
+        .join(&("v2.2/".to_owned() + wallet_address + "/erc20"))
+        .unwrap();
 
     let client = Client::new();
-    let mut request_builder = client.get(&url);
+    let mut request_builder = client.get(url);
     request_builder = request_builder.query(&[("chain", chain)]);
     // request_builder = request_builder.query(&[("_", &_)]);
 
@@ -37,7 +38,7 @@ pub async fn get_starting_balance(
     }
 
     let response = request_builder
-        .header("X-API-Key", std::env!("MORALIS_API_KEY"))
+        .header("X-API-Key", moralis_api_key)
         .send()
         .await?;
 

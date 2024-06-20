@@ -4,13 +4,12 @@ use serde::Serialize;
 pub async fn delete_wallet_address_from_moralis_stream(
     address: &str,
     stream_id: &str,
+    moralis_api_key: &str,
+    moralis_api_stream_url: Url,
 ) -> Result<(), ReqwestError> {
-    let moralis_api_key = std::env!("MORALIS_API_KEY");
-    let moralis_api_stream_url = std::env!("MORALIS_API_STREAM_URL");
     let client = Client::new();
 
-    let url = Url::parse(moralis_api_stream_url)
-        .expect("Failed to parse MORALIS_API_STREAM_URL")
+    let url = moralis_api_stream_url
         .join(&(stream_id.to_owned() + "/address"))
         .expect("Failed to join base url with stream id and address");
 

@@ -4,6 +4,7 @@ use chrono::DateTime;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Id, Thing};
+use url::Url;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,20 +36,28 @@ pub struct TokenPriceRawResponse {
 pub async fn get_token_price_history(
     token_symbol: &String,
     end_timestamp_in_millis: u64,
+    binance_klines_url: Url,
+    binance_interval: &str,
 ) -> Result<Vec<TokenPriceResponse>, ServerError> {
     let limit: u64 = 720;
     let start_time = end_timestamp_in_millis - (limit * 60 * 1000);
-    let url = std::env!("BINANCE_KLINES_URL");
+
     let query = TokenPriceParams {
-        symbol: token_symbol.to_string().to_uppercase() + std::env!("USDT_TOKEN_SYMBOL"),
-        interval: std::env!("BINANCE_INTERVAL").to_string(),
+        symbol: token_symbol.to_string().to_uppercase() + "USDT",
+        interval: binance_interval.to_string(),
         start_time,
         end_time: end_timestamp_in_millis,
         limit,
     };
     let client = Client::new();
-    let response =
-        handle_api_ratelimit(3, || async { client.get(url).query(&query).send().await }).await?;
+    let response = handle_api_ratelimit(3, || async {
+        client
+            .get(binance_klines_url.clone())
+            .query(&query)
+            .send()
+            .await
+    })
+    .await?;
     let body: Vec<TokenPriceRawResponse> = response.json().await?;
     let result: Vec<TokenPriceResponse> = body
         .into_iter()
