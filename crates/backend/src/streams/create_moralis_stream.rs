@@ -107,7 +107,7 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
     tracing::info!("{}", serialized_stream_data);
 
     let moralis_api_stream_url = std::env!("MORALIS_API_STREAM_URL");
-    let _res = client
+    let response = client
         .put(moralis_api_stream_url)
         // TODO: Create struct for headers to insert one, instead of multi .header() fn calls
         .header("accept", "application/json")
@@ -118,7 +118,7 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
         .await?;
     // TODO: HANDLE RESPONSE to parse only necessary part that includes error msg
     // if reponses are different use flatten enum, if have similiar fields then parse to single one e.g. message field
-    let json_response: Value = _res.json().await?;
+    let json_response: Value = response.json().await?;
     tracing::info!("{:?}", json_response);
     Ok(())
 }

@@ -49,6 +49,6 @@ pub async fn delete_wallet_address_from_moralis_stream(address: &str) -> Result<
 }
 
 #[derive(Serialize)]
-struct WalletAddress {
-    address: String,
+pub struct WalletAddress {
+    pub address: String,
 }
