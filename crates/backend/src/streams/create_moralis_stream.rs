@@ -79,25 +79,21 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
     }];
     // TODO: CREATE args with CLAP
     let client = Client::new();
-
     let moralis_api_key = std::env!("MORALIS_API_KEY");
-
     let webhook_url = std::env!("WEBHOOK_URL").to_string();
-
     let description = String::from("Listen for transfers");
-
     let tag = String::from("transfers");
-
     let chain_ids = vec![std::env!("SEPOLIA_CHAIN_ID").to_string()];
-
-    let topic0 =
-        vec![serde_json::to_string(&Topic::Transfer).expect("Failed to serialize Topic::Transfer")];
+    // TODO: create enums that serialize to string
+    let topic0 = vec![serde_json::to_string(&Topic::Transfer)
+        .expect("Failed to serialize Topic::Transfer")
+        .trim_matches('"')
+        .to_string()];
 
     let get_native_balances = vec![GetNativeBalances {
         selectors: vec!["$fromAddress".to_string(), "$toAddress".to_string()],
         type_field: "tx".to_string(),
     }];
-
     let stream_data = StreamData {
         chain_ids,
         description,
