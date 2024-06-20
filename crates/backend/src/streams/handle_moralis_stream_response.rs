@@ -36,9 +36,9 @@ pub async fn handle_moralis_stream_response(
         };
 
         let sql = "
-                            SELECT count() FROM wallet WHERE address = type::string($wallet_from_address);
-                            SELECT count() FROM wallet WHERE address = type::string($wallet_to_address);
-                        ";
+                SELECT count() FROM wallet WHERE address = type::string($wallet_from_address);
+                SELECT count() FROM wallet WHERE address = type::string($wallet_to_address);";
+
         let mut is_from_and_to_in_database = DB
             .query(sql)
             .bind(("wallet_from_address", &from_address_checksummed))
@@ -55,7 +55,7 @@ pub async fn handle_moralis_stream_response(
             )
             .unwrap()
                 > *wallet_address_to_timestamp
-                    .get(&from_address_checksummed.to_string())
+                    .get(&from_address_checksummed)
                     .unwrap()
         {
             let mut wallet_id_query_result = DB
@@ -89,7 +89,7 @@ pub async fn handle_moralis_stream_response(
             )
             .unwrap()
                 > *wallet_address_to_timestamp
-                    .get(&to_address_checksummed.to_string())
+                    .get(&to_address_checksummed)
                     .unwrap()
         {
             let mut wallet_id_query_result = DB
@@ -123,7 +123,7 @@ pub async fn handle_moralis_stream_response(
             .content(balance_history_records)
             .await?;
         for record in response {
-            tracing::debug!("Inserted Record: {:?}", record);
+            tracing::info!("Inserted Record: {:?}", record);
         }
     }
     Ok(())

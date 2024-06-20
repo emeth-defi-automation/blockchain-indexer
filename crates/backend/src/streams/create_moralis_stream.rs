@@ -1,8 +1,13 @@
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use rand::{thread_rng, Rng};
+use reqwest::{header::HeaderMap, Client};
+use serde::ser::Serializer;
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json::{Error, Value};
+use std::time::Duration;
+use tokio::time::sleep;
 
-pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
-    // Prepare data
+async fn create_moralis_stream() -> Result<CreateMoralisStreamResult, reqwest::Error> {
     let balance_of_sender_abi = FunctionABI {
         inputs: vec![ABIInput {
             internal_type: "address".to_string(),
@@ -77,17 +82,23 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
         type_field: "event".to_string(),
     }];
 
-    let client = reqwest::Client::new();
+    let client = Client::new();
     let moralis_api_key = std::env!("MORALIS_API_KEY");
     let webhook_url = std::env!("WEBHOOK_URL").to_string();
     let description = String::from("Listen for transfers");
     let tag = String::from("transfers");
     let chain_ids = vec![std::env!("SEPOLIA_CHAIN_ID").to_string()];
-    let topic0 = vec!["Transfer(address,address,uint256)".to_string()];
+
+    let topic0 = vec![serde_json::to_string(&Topic::Transfer)
+        .expect("Failed to serialize Topic::Transfer")
+        .trim_matches('"')
+        .to_string()];
+
     let get_native_balances = vec![GetNativeBalances {
         selectors: vec!["$fromAddress".to_string(), "$toAddress".to_string()],
         type_field: "tx".to_string(),
     }];
+
     let stream_data = StreamData {
         chain_ids,
         description,
@@ -103,18 +114,59 @@ pub async fn create_moralis_stream() -> Result<(), reqwest::Error> {
 
     let serialized_stream_data =
         serde_json::to_string(&stream_data).expect("Failed to serialize stream data");
-    tracing::info!("{}", serialized_stream_data);
-    let _res = client
-        .put("https://api.moralis-streams.com/streams/evm")
-        .header("accept", "application/json")
-        .header("X-API-Key", moralis_api_key)
-        .header("content-type", "application/json")
+
+    let moralis_api_stream_url = std::env!("MORALIS_API_STREAM_URL");
+
+    let mut headers = HeaderMap::new();
+    headers.insert("accept", "application/json".parse().unwrap());
+    headers.insert("X-API-Key", moralis_api_key.parse().unwrap());
+    headers.insert("content-type", "application/json".parse().unwrap());
+
+    let response = client
+        .put(moralis_api_stream_url)
+        .headers(headers)
         .body(serialized_stream_data)
         .send()
         .await?;
-    let json_response: Value = _res.json().await?;
-    tracing::info!("{:?}", json_response);
-    Ok(())
+
+    let response_text = response.text().await?;
+    match check_id_exists(&response_text) {
+        Ok(Some(id)) => Ok(CreateMoralisStreamResult::Success(id)),
+        Ok(None) => Ok(CreateMoralisStreamResult::Failure(response_text)),
+        Err(e) => Ok(CreateMoralisStreamResult::Failure(e.to_string())),
+    }
+}
+
+fn check_id_exists(data: &str) -> Result<Option<String>, Error> {
+    let v: Value = serde_json::from_str(data)?;
+    Ok(v.get("id").and_then(Value::as_str).map(|s| s.to_string()))
+}
+pub async fn create_moralis_stream_with_retries(
+    max_retries: i32,
+) -> Result<CreateMoralisStreamResult, reqwest::Error> {
+    let mut attempt = 0;
+    let mut failure_message = String::new();
+    while attempt < max_retries {
+        match create_moralis_stream().await {
+            Ok(CreateMoralisStreamResult::Success(message)) => {
+                return Ok(CreateMoralisStreamResult::Success(message));
+            }
+            Ok(CreateMoralisStreamResult::Failure(message)) => {
+                failure_message = message;
+                tracing::info!(
+                    "Moralis Stream Creation Attempt {} failed, retrying...",
+                    attempt + 1
+                );
+            }
+            Err(e) => return Err(e),
+        }
+
+        attempt += 1;
+        let sleep_duration = thread_rng().gen_range(3..=5);
+        sleep(Duration::from_secs(sleep_duration)).await;
+    }
+
+    Ok(CreateMoralisStreamResult::Failure(failure_message))
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -200,4 +252,26 @@ struct StreamData {
     triggers: Vec<Trigger>,
     #[serde(rename = "getNativeBalances")]
     get_native_balances: Vec<GetNativeBalances>,
+}
+
+#[derive(Debug)]
+enum Topic {
+    Transfer,
+}
+
+impl Serialize for Topic {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let topic_str = match *self {
+            Topic::Transfer => "Transfer(address,address,uint256)",
+        };
+        serializer.serialize_str(topic_str)
+    }
+}
+
+pub enum CreateMoralisStreamResult {
+    Success(String),
+    Failure(String),
 }
