@@ -6,7 +6,6 @@ mod utils;
 
 use axum_server::server::{graceful_shutdown_listener, start};
 use chrono::{DateTime, Utc};
-use clap::builder::Str;
 use futures::{future::join_all, StreamExt};
 use models::{errors::ServerError, wallet::Wallet};
 use networking::get_block_request::get_block_request;
