@@ -6,10 +6,11 @@ pub async fn get_transfers_history(
     chain: &String,
     to_block: u64,
     cursor: Option<String>,
+    glm_token_address: &str,
+    usdc_token_address: &str,
+    usdt_token_address: &str,
+    moralis_api_key: &str,
 ) -> Result<GetTransfersHistoryResponse, reqwest::Error> {
-    let glm_token_address = std::env!("GLM_TOKEN_ADDRESS");
-    let usdc_token_address = std::env!("USDC_TOKEN_ADDRESS");
-    let usdt_token_address = std::env!("USDT_TOKEN_ADDRESS");
     let token_addresses: Vec<&str> =
         vec![glm_token_address, usdc_token_address, usdt_token_address];
 
@@ -35,7 +36,7 @@ pub async fn get_transfers_history(
     }
 
     let response = request_builder
-        .header("X-API-Key", std::env!("MORALIS_API_KEY"))
+        .header("X-API-Key", moralis_api_key)
         .send()
         .await?;
 

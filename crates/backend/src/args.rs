@@ -10,7 +10,16 @@ pub struct Args {
     #[arg(long, env)]
     pub moralis_api_stream_url: Url,
 
-    #[arg(long, short, env)]
+    #[arg(long, env)]
+    pub moralis_api_deep_index_url: Url,
+
+    #[arg(long, env)]
+    pub binance_klines_url: Url,
+
+    #[arg(long, env)]
+    pub binance_interval: String,
+
+    #[arg(long, env)]
     pub webhook_url: Url,
 
     #[arg(long, env)]
@@ -42,4 +51,13 @@ pub struct Args {
 
     #[arg(long, env)]
     pub usdc_token_binance_symbol: String,
+
+    #[arg(long, env)]
+    pub glm_token_address: String,
+
+    #[arg(long, env)]
+    pub usdc_token_address: String,
+
+    #[arg(long, env)]
+    pub usdt_token_address: String,
 }

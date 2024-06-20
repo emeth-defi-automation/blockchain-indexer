@@ -18,6 +18,7 @@ struct DateToBlockParams {
 pub async fn get_block_for_date(
     chain: &String,
     date: DateTime<Utc>,
+    moralis_api_key: &str,
 ) -> Result<u64, reqwest::Error> {
     let url = "https://deep-index.moralis.io/api/v2.2/dateToBlock";
     let query = DateToBlockParams {
@@ -27,7 +28,7 @@ pub async fn get_block_for_date(
     let response = Client::new()
         .get(url)
         .query(&query)
-        .header("X-API-Key", std::env!("MORALIS_API_KEY"))
+        .header("X-API-Key", moralis_api_key)
         .send()
         .await?;
     let body: DateToBlockResponse = response.json().await?;

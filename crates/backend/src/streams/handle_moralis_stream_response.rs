@@ -3,7 +3,7 @@ use crate::{
     CountQueryResult, IdQueryResult, DB,
 };
 use axum_server::server::StreamRequestBody;
-use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use surrealdb::sql::{Datetime, Thing};
 
@@ -72,10 +72,13 @@ pub async fn handle_moralis_stream_response(
 
             balance_history_records.push(TransfersHistoryRecord {
                 block_number: result.block.clone().number,
-                timestamp: Datetime(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(
-                    result.block.clone().timestamp.parse::<i64>().unwrap(),
-                    0,
-                ))),
+                timestamp: Datetime(
+                    DateTime::<Utc>::from_timestamp(
+                        result.block.clone().timestamp.parse::<i64>().unwrap(),
+                        0,
+                    )
+                    .unwrap(),
+                ),
                 wallet_value: transfer.triggers[0].value.clone(),
                 wallet_id,
                 token_symbol: transfer.token_symbol.clone(),
@@ -106,10 +109,13 @@ pub async fn handle_moralis_stream_response(
 
             balance_history_records.push(TransfersHistoryRecord {
                 block_number: result.block.clone().number,
-                timestamp: Datetime(Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(
-                    result.block.clone().timestamp.parse::<i64>().unwrap(),
-                    0,
-                ))),
+                timestamp: Datetime(
+                    DateTime::<Utc>::from_timestamp(
+                        result.block.clone().timestamp.parse::<i64>().unwrap(),
+                        0,
+                    )
+                    .unwrap(),
+                ),
                 wallet_value: transfer.triggers[1].value.clone(),
                 wallet_id,
                 token_symbol: transfer.token_symbol.clone(),
